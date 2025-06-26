@@ -1,0 +1,125 @@
+date: '2025-06-26T12:13:40.489Z'
+environment:
+  node: v23.9.0
+  platform: linux
+programs:
+  GovernanceAction1Intent:
+    compile_time_ms: 2474.87
+    methods:
+      dummy:
+        constraints: 0
+        gates: []
+  GovernanceAction2Intent:
+    compile_time_ms: 582.47
+    methods:
+      dummy:
+        constraints: 0
+        gates: []
+  GovActionIntent:
+    compile_time_ms: 2946.45
+    methods:
+      action1:
+        constraints: 0
+        gates: []
+  ZkusdRollup:
+    compile_time_ms: 2459.88
+    methods:
+      governanceUpdateIntent:
+        constraints: 5
+        gates:
+          - type: Generic
+            wires:
+              - row: 1
+                col: 0
+              - row: 0
+                col: 1
+              - row: 0
+                col: 2
+              - row: 1
+                col: 2
+              - row: 0
+                col: 4
+              - row: 0
+                col: 5
+              - row: 0
+                col: 6
+            coeffs:
+              - '1'
+              - '0'
+              - '0'
+              - '0'
+              - '0'
+              - '1'
+              - '0'
+              - '0'
+              - '0'
+              - >-
+                28948022309329048855892746252171976963363056481941560715954676764349967630335
+          - type: EndoMulScalar
+            wires:
+              - row: 3
+                col: 0
+              - row: 2
+                col: 0
+              - row: 1
+                col: 3
+              - row: 3
+                col: 2
+              - row: 2
+                col: 2
+              - row: 2
+                col: 3
+              - row: 1
+                col: 6
+            coeffs: []
+          - type: EndoMulScalar
+            wires:
+              - row: 1
+                col: 1
+              - row: 2
+                col: 1
+              - row: 1
+                col: 4
+              - row: 1
+                col: 5
+              - row: 2
+                col: 4
+              - row: 2
+                col: 5
+              - row: 2
+                col: 6
+            coeffs: []
+          - type: EndoMulScalar
+            wires:
+              - row: 0
+                col: 0
+              - row: 4
+                col: 0
+              - row: 3
+                col: 3
+              - row: 0
+                col: 3
+              - row: 4
+                col: 2
+              - row: 4
+                col: 3
+              - row: 3
+                col: 6
+            coeffs: []
+          - type: EndoMulScalar
+            wires:
+              - row: 3
+                col: 1
+              - row: 4
+                col: 1
+              - row: 3
+                col: 4
+              - row: 3
+                col: 5
+              - row: 4
+                col: 4
+              - row: 4
+                col: 5
+              - row: 4
+                col: 6
+            coeffs: []
