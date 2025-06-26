@@ -1,28 +1,28 @@
-date: '2025-06-26T12:13:40.489Z'
+date: '2025-06-26T12:50:13.580Z'
 environment:
   node: v23.9.0
   platform: linux
 programs:
   GovernanceAction1Intent:
-    compile_time_ms: 2474.87
+    compile_time_ms: 2389.36
     methods:
       dummy:
         constraints: 0
         gates: []
   GovernanceAction2Intent:
-    compile_time_ms: 582.47
+    compile_time_ms: 572.6
     methods:
       dummy:
         constraints: 0
         gates: []
   GovActionIntent:
-    compile_time_ms: 2946.45
+    compile_time_ms: 3025.6
     methods:
       action1:
         constraints: 0
         gates: []
   ZkusdRollup:
-    compile_time_ms: 2459.88
+    compile_time_ms: 2750.52
     methods:
       governanceUpdateIntent:
         constraints: 5

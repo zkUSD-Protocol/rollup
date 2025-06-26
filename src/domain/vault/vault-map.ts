@@ -44,8 +44,8 @@ export class VaultMap extends VaultMapBase {
 verifyAndInsert(state: ZkusdVaults, update: VaultUpdate) {
   const { vaultAddress, vaultState } = update;
 
-  // the update is defined against intent root map
-  this.getRoot().assertEquals(state.vaultMapRoot.intentRoot);
+  // map is up-to-date wrt to the state
+  this.getRoot().assertEquals(state.vaultMapRoot.liveRoot);
 
   // pick the parameters
   const vaultParameters: VaultParameters = Provable.if(update.collateralType.equals(CollateralType.SuiCollateralType()),
@@ -63,8 +63,8 @@ verifyAndInsert(state: ZkusdVaults, update: VaultUpdate) {
 verifyAndUpdate(state: ZkusdVaults, update: VaultUpdate) {
   const { vaultAddress, vaultState } = update;
 
-  // the update is defined against intent root map
-  this.getRoot().assertEquals(state.vaultMapRoot.intentRoot);
+  // map is up-to-date wrt to the state
+  this.getRoot().assertEquals(state.vaultMapRoot.liveRoot);
 
   // pick the parameters
   const vaultParameters: VaultParameters = Provable.if(update.collateralType.equals(CollateralType.SuiCollateralType()),
