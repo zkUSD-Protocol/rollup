@@ -9,5 +9,9 @@ export class ZkUsdState extends Struct({
     trasactionFee: UInt32,
     govRewardFeePercentage: UInt32,
 }) {
+
+
+
+    
 	
 }
