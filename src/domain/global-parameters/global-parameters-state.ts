@@ -1,8 +1,12 @@
-import { Bool, Struct } from "o1js";
+import { Bool, Field, Struct } from "o1js";
 
 
-class GlobalParametersMap {}
-
-class GlobalParametersState extends Struct({
+export class GlobalParametersState extends Struct({
     emergencyStop: Bool,
-}){}
+}){
+    toFields(): Field[] {
+        return [
+            this.emergencyStop.toField(),
+        ];
+    }
+}

@@ -72,6 +72,13 @@ export function RollupRoots<T, T2=T>() {
 		liveRoot: MerkleRoot<T2, 'live'>,
 	}) {
 		readonly [brand]!: [T, T2];
+
+		toFields(): Field[] {
+			return [
+				this.intentRoot.root,
+				this.liveRoot.root
+			];
+		}
 	}
 }
 
