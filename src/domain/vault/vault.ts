@@ -7,6 +7,7 @@ import {
   UInt8,
 } from 'o1js';
 import { VaultState } from './vault-state.js';
+import { BigInt348 } from '../../core/BigInt384.js';
 
 // Errors
 export const VaultErrors = {
@@ -35,9 +36,9 @@ export class VaultParameters extends Struct({
   collateralRatio: UInt8,
   liquidationBonusRatio: UInt8,
   priceNanoUsd: UInt64,
-  globalAccumulativeInterestRate: UInt64,
-  lastUpdateTimestamp: UInt64,
-  aprValue: UInt64,
+  globalAccumulativeInterestRateScaled: BigInt348,
+  lastUpdateTimestampSec: UInt64,
+  aprValueScaled: BigInt348,
   totalNda: UInt64,
 }) {
 
@@ -50,9 +51,9 @@ export class VaultParameters extends Struct({
       this.collateralRatio.value,
       this.liquidationBonusRatio.value,
       this.priceNanoUsd.value,
-      this.globalAccumulativeInterestRate.value,
-      this.lastUpdateTimestamp.value,
-      this.aprValue.value,
+      ...this.globalAccumulativeInterestRateScaled.toFields(),
+      this.lastUpdateTimestampSec.value,
+      ...this.aprValueScaled.toFields(),
       this.totalNda.value,
     ];
   }

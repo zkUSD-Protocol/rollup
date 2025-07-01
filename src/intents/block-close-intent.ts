@@ -1,6 +1,7 @@
 import { Field, Signature, Struct, UInt64, ZkProgram } from "o1js";
 import { MerkleRoot } from "../core/map/merkle-root.js";
 import { ObserverMap } from "../domain/enclave/zskud-enclaves-state.js";
+import { HistoricalBlockStateMap } from "../domain/block-info/historical-block-state-map.js";
 
 export class BlockCloseIntentPublicInput extends Struct({
     
@@ -43,6 +44,12 @@ export const ObserverPriceProgram = ZkProgram({
     publicInput: ObserverPriceProofPublicInput,
     publicOutput: ObserverPriceProofPublicOutput,
     methods: {
+        dummy: {
+            privateInputs: [],
+            async method(publicInput: ObserverPriceProofPublicInput): Promise<{ publicOutput: ObserverPriceProofPublicOutput }> {
+                return { publicOutput: ObserverPriceProofPublicOutput.empty() };
+            }
+        }
     }
 })
 
@@ -52,4 +59,5 @@ export class ObserverPriceProof extends ZkProgram.Proof(ObserverPriceProgram) {}
 export class BlockCloseIntentPrivateInput extends Struct({
     // validatorSignature: Signature,
     observerPriceProof: ObserverPriceProof,
+    historicalStateMap: HistoricalBlockStateMap,
 }) {}

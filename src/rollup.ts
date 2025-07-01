@@ -1,9 +1,9 @@
 import { Field, Poseidon, Struct, UInt64, ZkProgram } from "o1js";
-import { GovActionIntentPrivateInput } from "./intents/governance/wrapper.js";
 import { ZkUsdRollupState } from "./domain/rollup-state.js";
 import { BlockCloseIntentPrivateInput } from "./intents/block-close-intent.js";
 import { HistoricalBlockStateMap } from "./domain/block-info/historical-block-state-map.js";
 import { BlockInfoState } from "./domain/block-info/block-info-state.js";
+import { computeRate } from "./domain/vault/rate-computation.js";
 
 /**
  * Copies live roots to intent roots for all state maps in the rollup state
@@ -29,17 +29,17 @@ function copyLiveRootsToIntentRoots(state: ZkUsdRollupState): void {
 
 /**
  * Updates the block info state with new block information and stores the previous state hash
+ * @param historicalStateTree The historical state tree to update
  * @param timestamp The timestamp of the block
  * @param blockInfoState The block info state to update
  * @param previousStateHash The hash of the previous state
- * @param historicalStateTree The historical state tree to update
  * @returns The updated block info state
  */
 function updateBlockInfoState(
-	timestamp: UInt64,
+  historicalStateTree: HistoricalBlockStateMap,
+  timestamp: UInt64,
   blockInfoState: BlockInfoState,
   previousStateHash: Field,
-  historicalStateTree: HistoricalBlockStateMap
 ): void {
   // Increment block number
   blockInfoState.blockNumber = blockInfoState.blockNumber.add(1);
@@ -62,20 +62,20 @@ export const ZkusdRollup = ZkProgram({
   publicInput: ZkUsdRollupState,
   publicOutput: ZkUsdRollupState,
   methods: {
-	governanceUpdateIntent: {
-		privateInputs: [GovActionIntentPrivateInput],
-		async method(
-			publicInput: ZkUsdRollupState,
-			privateInput: GovActionIntentPrivateInput
-		): Promise<{ publicOutput: ZkUsdRollupState }> {
-			// Verify the intent proof
-			privateInput.proof.verify();
+	// governanceUpdateIntent: {
+	// 	privateInputs: [GovActionIntentPrivateInput],
+	// 	async method(
+	// 		publicInput: ZkUsdRollupState,
+	// 		privateInput: GovActionIntentPrivateInput
+	// 	): Promise<{ publicOutput: ZkUsdRollupState }> {
+	// 		// Verify the intent proof
+	// 		privateInput.proof.verify();
 			
-			// output is input plus value from the proof
-			const publicOutput = ZkUsdRollupState.empty();
-			return { publicOutput: publicInput };
-		}
-	},
+	// 		// output is input plus value from the proof
+	// 		const publicOutput = ZkUsdRollupState.empty();
+	// 		return { publicOutput: publicInput };
+	// 	}
+	// },
 	blockCloseIntent: {
 		privateInputs: [BlockCloseIntentPrivateInput],
 		async method(
@@ -83,30 +83,47 @@ export const ZkusdRollup = ZkProgram({
 			privateInput: BlockCloseIntentPrivateInput
 		): Promise<{ publicOutput: ZkUsdRollupState }> {
 
-			// save the previous state in the merkle map
-			const previousStateHash: Field = Poseidon.hash(publicInput.toFields());
+			// // save the previous state in the merkle map
+			// const previousStateHash: Field = Poseidon.hash(publicInput.toFields());
 
-			// - update the price for each collateral type
-			privateInput.observerPriceProof.verify();
+			// // - update the price for each collateral type
+			// privateInput.observerPriceProof.verify();
 			
-			publicInput.vaultState.minaVaultParameters.priceNanoUsd = privateInput.observerPriceProof.publicOutput.minaPriceNanoUsd;
-			publicInput.vaultState.suiVaultParameters.priceNanoUsd = privateInput.observerPriceProof.publicOutput.suiPriceNanoUsd;
+			// publicInput.vaultState.minaVaultParameters.priceNanoUsd = privateInput.observerPriceProof.publicOutput.minaPriceNanoUsd;
+			// publicInput.vaultState.suiVaultParameters.priceNanoUsd = privateInput.observerPriceProof.publicOutput.suiPriceNanoUsd;
 			
-			// - calculate the new rate per collateral type <--- (this is where we need the timestamp)
+			// // - calculate the new rate per collateral type <--- (this is where we need the timestamp)
+			// const newRateMina = computeRate({
+			// 	lastUpdateTimestampSec: publicInput.vaultState.minaVaultParameters.lastUpdateTimestampSec,
+			// 	timestampBlockSec: privateInput.observerPriceProof.publicOutput.timestamp,
+			// 	aprValueScaled: publicInput.vaultState.minaVaultParameters.aprValueScaled,
+			// 	rateOldScaled: publicInput.vaultState.minaVaultParameters.globalAccumulativeInterestRateScaled,
+			// });
+			// // set the new rate
+			// publicInput.vaultState.minaVaultParameters.globalAccumulativeInterestRateScaled = newRateMina.rateNewScaled;
 			
+			// // now sui
+			// const newRateSui = computeRate({
+			// 	lastUpdateTimestampSec: publicInput.vaultState.suiVaultParameters.lastUpdateTimestampSec,
+			// 	timestampBlockSec: privateInput.observerPriceProof.publicOutput.timestamp,
+			// 	aprValueScaled: publicInput.vaultState.suiVaultParameters.aprValueScaled,
+			// 	rateOldScaled: publicInput.vaultState.suiVaultParameters.globalAccumulativeInterestRateScaled,
+			// });
+			// // set the new rate
+			// publicInput.vaultState.suiVaultParameters.globalAccumulativeInterestRateScaled = newRateSui.rateNewScaled;
+			// // --
 			
-			// Copy live roots to intent roots for all state maps
-			copyLiveRootsToIntentRoots(publicInput);
+			// // Copy live roots to intent roots for all state maps
+			// copyLiveRootsToIntentRoots(publicInput);
 			
-			// Update block info and store previous state in historical state tree
-			// TODO: Get the historical state tree properly
-			const historicalStateTree: HistoricalBlockStateMap = undefined as unknown as HistoricalBlockStateMap;
-			updateBlockInfoState(
-				privateInput.observerPriceProof.publicOutput.timestamp,
-			  publicInput.blockInfoState,
-			  previousStateHash,
-			  historicalStateTree
-			);
+			// // Update block info and store previous state in historical state tree
+			// // TODO: Get the historical state tree properly
+			// updateBlockInfoState(
+			//   privateInput.historicalStateMap as HistoricalBlockStateMap,
+			//   privateInput.observerPriceProof.publicOutput.timestamp,
+			//   publicInput.blockInfoState,
+			//   previousStateHash,
+			// );
 
 			return { publicOutput: publicInput };
 		}

@@ -7,8 +7,12 @@ import { GovernanceAction1Intent } from './intents/governance/action1.js';
 import { GovernanceAction2Intent } from './intents/governance/action2.js';
 import { GovActionIntent } from './intents/governance/wrapper.js';
 import { ZkusdRollup } from './rollup.js';
+import { ObserverPriceProgram, ObserverPriceProof } from './intents/block-close-intent.js';
+import { ComputeRateProgram } from './domain/vault/rate-computation.js';
 
 const PROGRAMS = [
+  { name: 'ObserverPriceProof', program: ObserverPriceProgram },
+  { name: 'ComputeRate', program: ComputeRateProgram },
   { name: 'GovernanceAction1Intent', program: GovernanceAction1Intent },
   { name: 'GovernanceAction2Intent', program: GovernanceAction2Intent },
   { name: 'GovActionIntent', program: GovActionIntent },
@@ -43,7 +47,6 @@ const benchmark = async () => {
       const m = analysis[methodName];
       report.programs[name].methods[methodName] = {
         constraints: m.rows,
-        gates: m.gates
       };
     }
   }
