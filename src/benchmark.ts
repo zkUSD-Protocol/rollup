@@ -5,14 +5,12 @@ import yaml from 'js-yaml';
 
 import { GovernanceAction1Intent } from './intents/governance/action1.js';
 import { GovernanceAction2Intent } from './intents/governance/action2.js';
-import { GovActionIntent } from './intents/governance/wrapper.js';
 import { ZkusdRollup } from './rollup.js';
-import { ObserverPriceProgram, ObserverPriceProof } from './intents/block-close-intent.js';
-import { ComputeRateProgram } from './domain/vault/rate-computation.js';
+import { OracleBlockDataProgram } from './intents/block-close-intent.js';
+import { GovActionIntent } from './intents/governance/wrapper.js';
 
 const PROGRAMS = [
-  { name: 'ObserverPriceProof', program: ObserverPriceProgram },
-  { name: 'ComputeRate', program: ComputeRateProgram },
+  { name: 'ObserverPriceProof', program: OracleBlockDataProgram },
   { name: 'GovernanceAction1Intent', program: GovernanceAction1Intent },
   { name: 'GovernanceAction2Intent', program: GovernanceAction2Intent },
   { name: 'GovActionIntent', program: GovActionIntent },
@@ -33,6 +31,7 @@ const benchmark = async () => {
     console.log(`Benchmarking ${name}...`);
 
     const compileStart = performance.now();
+    // turn off cache to get the accurate compilation times.
     await program.compile();
     const compileEnd = performance.now();
 
@@ -58,4 +57,4 @@ const benchmark = async () => {
 
 benchmark().catch((err) => {
   console.error('Benchmarking failed:', err);
-});
+})

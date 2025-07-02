@@ -3,11 +3,9 @@ import {
   UInt64,
   Field,
   Bool,
-  PublicKey,
   UInt8,
 } from 'o1js';
 import { VaultState } from './vault-state.js';
-import { BigInt348 } from '../../core/BigInt384.js';
 
 // Errors
 export const VaultErrors = {
@@ -27,33 +25,38 @@ export const VaultErrors = {
     'Requested amount exceeds the deposited collateral in the vault ',
 };
 
-
 export class VaultParameters extends Struct({
-  collateralAmount: UInt64,
-  normalizedDebtAmount: UInt64,
-  owner: PublicKey,
   debtCeiling: UInt64,
   collateralRatio: UInt8,
   liquidationBonusRatio: UInt8,
+  aprValueScaled: UInt64,
+}) {
+
+  toFields(): Field[] {
+    return [
+      this.debtCeiling.value,
+      this.collateralRatio.value,
+      this.liquidationBonusRatio.value,
+      this.aprValueScaled.value,
+    ]
+  }
+}
+
+
+export class VaultTypeData extends Struct({
+  parameters: VaultParameters,
   priceNanoUsd: UInt64,
-  globalAccumulativeInterestRateScaled: BigInt348,
+  globalAccumulativeInterestRateScaled: UInt64,
   lastUpdateTimestampSec: UInt64,
-  aprValueScaled: BigInt348,
   totalNda: UInt64,
 }) {
 
   toFields(): Field[] {
     return [
-      this.collateralAmount.value,
-      this.normalizedDebtAmount.value,
-      ...this.owner.toFields(),
-      this.debtCeiling.value,
-      this.collateralRatio.value,
-      this.liquidationBonusRatio.value,
+      ...this.parameters.toFields(),
       this.priceNanoUsd.value,
       ...this.globalAccumulativeInterestRateScaled.toFields(),
       this.lastUpdateTimestampSec.value,
-      ...this.aprValueScaled.toFields(),
       this.totalNda.value,
     ];
   }

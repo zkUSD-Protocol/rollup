@@ -6,12 +6,12 @@ import { RegulatoryState } from "./regulatory/regulatory-state.js";
 import { FizkTokenState } from "./fizk-token/fizk-token-state.js";
 import { BlockInfoState } from "./block-info/block-info-state.js";
 import { ZkusdEnclavesState } from "./enclave/zskud-enclaves-state.js";
-import { ZkusdVaults } from "./vault/zkusd-vaults.js";
+import { ZkUsdVaults } from "./vault/zkusd-vaults.js";
 
 // includes all the different states from the domain subfolders
-export class ZkUsdRollupState extends Struct({
+export class FizkRollupState extends Struct({
     zkUsdState: ZkUsdState,
-    vaultState: ZkusdVaults,
+    vaultState: ZkUsdVaults,
     governanceState: GovernanceState,
     globalParametersState: GlobalParametersState,
     regulatoryState: RegulatoryState,

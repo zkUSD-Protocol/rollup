@@ -12,6 +12,8 @@ export class GovernanceState extends Struct({
     councilSeatsSignatureTreshold: UInt8,
     assemblyProposalThreshold: UInt64,
     assemblyProposalVetoThreshold: UInt64,
+    proposalExecutionDelayMillis: UInt64,
+    proposalSnapshotValidityMillis: UInt64,
     
     minaSettlementKey: PublicKey,
 
@@ -19,6 +21,7 @@ export class GovernanceState extends Struct({
     totalAmountStaked: UInt64,
 
     proposalMapRoot: RollupRoots<ProposalMap>(),
+    lastProposalIndex: Field,
     stakeMapRoot: RollupRoots<StakeMap>(),
     
 }) {
@@ -29,13 +32,63 @@ export class GovernanceState extends Struct({
             this.councilSeatsSignatureTreshold.value,
             this.assemblyProposalThreshold.value,
             this.assemblyProposalVetoThreshold.value,
+            this.proposalExecutionDelayMillis.value,
+            this.proposalSnapshotValidityMillis.value,
             ...this.minaSettlementKey.toFields(),
             this.globalGovRewardIndex.value,
             this.totalAmountStaked.value,
             this.proposalMapRoot.intentRoot.root,
             this.proposalMapRoot.liveRoot.root,
+            this.lastProposalIndex,
             this.stakeMapRoot.intentRoot.root,
             this.stakeMapRoot.liveRoot.root,
+        ];
+    }
+
+    applyUpdate(update: GovernanceStateUpdate): GovernanceState {
+        return new GovernanceState({
+            forp: update.forp,
+            councilMembersMerkleRoot: update.councilMembersMerkleRoot,
+            councilSeatsSignatureTreshold: update.councilSeatsSignatureTreshold,
+            assemblyProposalThreshold: update.assemblyProposalThreshold,
+            assemblyProposalVetoThreshold: update.assemblyProposalVetoThreshold,
+            proposalExecutionDelayMillis: update.proposalExecutionDelayMillis,
+            proposalSnapshotValidityMillis: update.proposalSnapshotValidityMillis,
+            minaSettlementKey: update.minaSettlementKey,
+            globalGovRewardIndex: update.globalGovRewardIndex,
+            totalAmountStaked: this.totalAmountStaked,
+            proposalMapRoot: this.proposalMapRoot,
+            lastProposalIndex: this.lastProposalIndex,
+            stakeMapRoot: this.stakeMapRoot,
+        });
+    }
+}
+export class GovernanceStateUpdate extends Struct({
+    forp: UInt64,
+    
+    councilMembersMerkleRoot: MerkleRoot<CouncilMemberMap,'live'>,
+    councilSeatsSignatureTreshold: UInt8,
+    assemblyProposalThreshold: UInt64,
+    assemblyProposalVetoThreshold: UInt64,
+    proposalExecutionDelayMillis: UInt64,
+    proposalSnapshotValidityMillis: UInt64,
+    
+    minaSettlementKey: PublicKey,
+
+    globalGovRewardIndex: UInt64,
+    
+}) {
+    toFields(): Field[] {
+        return [
+            this.forp.value,
+            this.councilMembersMerkleRoot.root,
+            this.councilSeatsSignatureTreshold.value,
+            this.assemblyProposalThreshold.value,
+            this.assemblyProposalVetoThreshold.value,
+            this.proposalExecutionDelayMillis.value,
+            this.proposalSnapshotValidityMillis.value,
+            ...this.minaSettlementKey.toFields(),
+            this.globalGovRewardIndex.value,
         ];
     }
 }

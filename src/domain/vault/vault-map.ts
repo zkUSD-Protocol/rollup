@@ -3,9 +3,9 @@ import { MapPruner, PruningRequest } from "../../core/map/map-pruner";
 import { PrunedMapBase } from "../../core/map/pruned-map-base";
 import { SerializableMapData } from "../../core/map/serializable-indexed-map";
 import { MerkleRoot } from "../../core/map/merkle-root";
-import { ZkusdVaults } from "./zkusd-vaults";
+import { ZkUsdVaults } from "./zkusd-vaults";
 import { VaultUpdate } from "./vault-update";
-import { Vault, VaultParameters } from "./vault";
+import { Vault, VaultParameters, VaultTypeData } from "./vault";
 import { Provable } from "o1js";
 import { CollateralType } from "./vault-collateral-type";
 
@@ -41,7 +41,7 @@ export class VaultMap extends VaultMapBase {
     return new MerkleRoot({ root: this.root });
   }
 
-verifyAndInsert(state: ZkusdVaults, update: VaultUpdate) {
+verifyAndInsert(state: ZkUsdVaults, update: VaultUpdate) {
   const { vaultAddress, vaultState } = update;
 
   // map is up-to-date wrt to the state
@@ -49,8 +49,8 @@ verifyAndInsert(state: ZkusdVaults, update: VaultUpdate) {
 
   // pick the parameters
   const vaultParameters: VaultParameters = Provable.if(update.collateralType.equals(CollateralType.SuiCollateralType()),
-    state.suiVaultParameters,
-    state.minaVaultParameters
+    state.suiVaultTypeState.parameters,
+    state.minaVaultTypeState.parameters
   );
 
   // recreate the vault from the state
@@ -60,7 +60,7 @@ verifyAndInsert(state: ZkusdVaults, update: VaultUpdate) {
   this.insert(vaultAddress.key, vault.pack());
 }
 
-verifyAndUpdate(state: ZkusdVaults, update: VaultUpdate) {
+verifyAndUpdate(state: ZkUsdVaults, update: VaultUpdate) {
   const { vaultAddress, vaultState } = update;
 
   // map is up-to-date wrt to the state
@@ -68,8 +68,8 @@ verifyAndUpdate(state: ZkusdVaults, update: VaultUpdate) {
 
   // pick the parameters
   const vaultParameters: VaultParameters = Provable.if(update.collateralType.equals(CollateralType.SuiCollateralType()),
-    state.suiVaultParameters,
-    state.minaVaultParameters
+    state.suiVaultTypeState.parameters,
+    state.minaVaultTypeState.parameters
   );
 
   // recreate the vault from the state

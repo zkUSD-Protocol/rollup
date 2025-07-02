@@ -2,6 +2,7 @@ import { Field, Signature, Struct, UInt64, ZkProgram } from "o1js";
 import { MerkleRoot } from "../core/map/merkle-root.js";
 import { ObserverMap } from "../domain/enclave/zskud-enclaves-state.js";
 import { HistoricalBlockStateMap } from "../domain/block-info/historical-block-state-map.js";
+import { Timestamp } from "../core/timestamp.js";
 
 export class BlockCloseIntentPublicInput extends Struct({
     
@@ -29,35 +30,39 @@ export const BlockCloseIntent = ZkProgram({
 export class BlockCloseIntentProof extends ZkProgram.Proof(BlockCloseIntent) {}
 
 
-export class ObserverPriceProofPublicInput extends Struct({
+export class OracleBlockDataProofPublicInput extends Struct({
     observersMerkleRoot: MerkleRoot<ObserverMap, 'live'>,
 }) {}
+
+export class VaultTypeUpdate extends Struct({
+    priceNanoUsd: UInt64,
+    blockRateScaledUpdate:UInt64,
+}) {}
     
-export class ObserverPriceProofPublicOutput extends Struct({
-    suiPriceNanoUsd: UInt64,
-    minaPriceNanoUsd: UInt64,
-    timestamp: UInt64,
+export class OracleBlockDataProofPublicOutput extends Struct({
+    minaVaultTypeUpdate: VaultTypeUpdate,
+    suiVaultTypeUpdate: VaultTypeUpdate,
+    timestamp: Timestamp,
 }) {}
 
-export const ObserverPriceProgram = ZkProgram({
-    name: 'ObserverPriceProof',
-    publicInput: ObserverPriceProofPublicInput,
-    publicOutput: ObserverPriceProofPublicOutput,
+export const OracleBlockDataProgram = ZkProgram({
+    name: 'ObserverBlockDataProgram',
+    publicInput: OracleBlockDataProofPublicInput,
+    publicOutput: OracleBlockDataProofPublicOutput,
     methods: {
         dummy: {
             privateInputs: [],
-            async method(publicInput: ObserverPriceProofPublicInput): Promise<{ publicOutput: ObserverPriceProofPublicOutput }> {
-                return { publicOutput: ObserverPriceProofPublicOutput.empty() };
+            async method(publicInput: OracleBlockDataProofPublicInput): Promise<{ publicOutput: OracleBlockDataProofPublicOutput }> {
+                return { publicOutput: OracleBlockDataProofPublicOutput.empty() };
             }
         }
     }
 })
 
-export class ObserverPriceProof extends ZkProgram.Proof(ObserverPriceProgram) {}
+export class OracleBlockDataProof extends ZkProgram.Proof(OracleBlockDataProgram) {}
 
 
 export class BlockCloseIntentPrivateInput extends Struct({
-    // validatorSignature: Signature,
-    observerPriceProof: ObserverPriceProof,
+    oracleBlockDataProof: OracleBlockDataProof,
     historicalStateMap: HistoricalBlockStateMap,
 }) {}

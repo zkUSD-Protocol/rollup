@@ -1,13 +1,13 @@
 import { Field, Struct } from "o1js";
 import { RollupRoots } from "../../core/map/merkle-root.js";
 import { VaultMap } from "./vault-map.js";
-import { VaultParameters } from "./vault.js";
+import { VaultTypeData } from "./vault.js";
 
-export class ZkusdVaults extends Struct({
+export class ZkUsdVaults extends Struct({
   vaultMapRoot: RollupRoots<VaultMap>(),
   ioMapRoot: RollupRoots<VaultMap>(),
-  minaVaultParameters: VaultParameters,
-  suiVaultParameters: VaultParameters,
+  minaVaultTypeState: VaultTypeData,
+  suiVaultTypeState: VaultTypeData,
 }) {
     toFields(): Field [] {
         return [
@@ -15,8 +15,8 @@ export class ZkusdVaults extends Struct({
             this.vaultMapRoot.liveRoot.root,
             this.ioMapRoot.intentRoot.root,
             this.ioMapRoot.liveRoot.root,
-            ...this.minaVaultParameters.toFields(),
-            ...this.suiVaultParameters.toFields(),
+            ...this.minaVaultTypeState.toFields(),
+            ...this.suiVaultTypeState.toFields(),
         ];
     }
 }

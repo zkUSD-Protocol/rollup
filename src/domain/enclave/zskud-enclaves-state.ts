@@ -8,10 +8,10 @@ export class OrchestratorMap {}
 export class IntentSponsorMap {}
 
 export class ZkusdEnclavesState extends Struct({
-    observerPcrs: Pcrs,
-    validatorPcrs: Pcrs,
-    orchestratorPcrs: Pcrs,
-    intentSponsorPcrs: Pcrs,
+    observerPcrsHash: Field,
+    validatorPcrsHash: Field,
+    orchestratorPcrsHash: Field,
+    intentSponsorPcrsHash: Field,
     observerKeyMerkleRoot: MerkleRoot<ObserverMap, 'live'>,
     validatorKeyMerkleRoot: MerkleRoot<ValidatorMap, 'live'>,
     orchestratorKeyMerkleRoot: MerkleRoot<OrchestratorMap, 'live'>,
@@ -19,10 +19,10 @@ export class ZkusdEnclavesState extends Struct({
 }){
     toFields(): Field[] {
         return [
-            ...this.observerPcrs.toFields(),
-            ...this.validatorPcrs.toFields(),
-            ...this.orchestratorPcrs.toFields(),
-            ...this.intentSponsorPcrs.toFields(),
+            this.observerPcrsHash,
+            this.validatorPcrsHash,
+            this.orchestratorPcrsHash,
+            this.intentSponsorPcrsHash,
             this.observerKeyMerkleRoot.root,
             this.validatorKeyMerkleRoot.root,
             this.orchestratorKeyMerkleRoot.root,

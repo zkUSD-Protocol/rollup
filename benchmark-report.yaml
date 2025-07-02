@@ -1,35 +1,36 @@
-date: '2025-07-01T12:24:55.220Z'
+date: '2025-07-02T15:32:37.073Z'
 environment:
   node: v23.9.0
   platform: linux
 programs:
   ObserverPriceProof:
-    compile_time_ms: 1608.54
+    compile_time_ms: 1646.42
     methods:
       dummy:
         constraints: 0
-  ComputeRate:
-    compile_time_ms: 58028.52
-    methods:
-      compute:
-        constraints: 43809
   GovernanceAction1Intent:
-    compile_time_ms: 490.12
+    compile_time_ms: 510.89
     methods:
       dummy:
         constraints: 0
   GovernanceAction2Intent:
-    compile_time_ms: 492.33
+    compile_time_ms: 453.84
     methods:
       dummy:
         constraints: 0
   GovActionIntent:
-    compile_time_ms: 2362.18
+    compile_time_ms: 3792.18
     methods:
       action1:
         constraints: 0
+      createProposal:
+        constraints: 0
   ZkusdRollup:
-    compile_time_ms: 2355.86
+    compile_time_ms: 49181.84
     methods:
       blockCloseIntent:
-        constraints: 112
+        constraints: 3604
+      govCreateProposal:
+        constraints: 5267
+      govExecuteUpdateIntent:
+        constraints: 1345
