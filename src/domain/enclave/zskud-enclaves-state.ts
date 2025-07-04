@@ -1,5 +1,4 @@
 import { Field, Struct } from "o1js";
-import { Pcrs } from "./pcrs.js";
 import { MerkleRoot } from "../../core/map/merkle-root.js";
 
 export class ObserverMap {}
@@ -12,10 +11,10 @@ export class ZkusdEnclavesState extends Struct({
     validatorPcrsHash: Field,
     orchestratorPcrsHash: Field,
     intentSponsorPcrsHash: Field,
-    observerKeyMerkleRoot: MerkleRoot<ObserverMap, 'live'>,
-    validatorKeyMerkleRoot: MerkleRoot<ValidatorMap, 'live'>,
-    orchestratorKeyMerkleRoot: MerkleRoot<OrchestratorMap, 'live'>,
-    intentSponsorKeyMerkleRoot: MerkleRoot<IntentSponsorMap, 'live'>,
+    observerKeysMerkleRoot: MerkleRoot<ObserverMap>,
+    validatorKeysMerkleRoot: MerkleRoot<ValidatorMap>,
+    orchestratorKeysMerkleRoot: MerkleRoot<OrchestratorMap>,
+    intentSponsorKeysMerkleRoot: MerkleRoot<IntentSponsorMap>,
 }){
     toFields(): Field[] {
         return [
@@ -23,10 +22,10 @@ export class ZkusdEnclavesState extends Struct({
             this.validatorPcrsHash,
             this.orchestratorPcrsHash,
             this.intentSponsorPcrsHash,
-            this.observerKeyMerkleRoot.root,
-            this.validatorKeyMerkleRoot.root,
-            this.orchestratorKeyMerkleRoot.root,
-            this.intentSponsorKeyMerkleRoot.root,
+            this.observerKeysMerkleRoot.root,
+            this.validatorKeysMerkleRoot.root,
+            this.orchestratorKeysMerkleRoot.root,
+            this.intentSponsorKeysMerkleRoot.root,
         ];
     }
 }

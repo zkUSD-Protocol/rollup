@@ -1,4 +1,4 @@
-import { Field, Signature, Struct, UInt64, ZkProgram } from "o1js";
+import { Struct, UInt64, ZkProgram } from "o1js";
 import { MerkleRoot } from "../core/map/merkle-root.js";
 import { ObserverMap } from "../domain/enclave/zskud-enclaves-state.js";
 import { HistoricalBlockStateMap } from "../domain/block-info/historical-block-state-map.js";
@@ -31,7 +31,7 @@ export class BlockCloseIntentProof extends ZkProgram.Proof(BlockCloseIntent) {}
 
 
 export class OracleBlockDataProofPublicInput extends Struct({
-    observersMerkleRoot: MerkleRoot<ObserverMap, 'live'>,
+    observersMerkleRoot: MerkleRoot<ObserverMap>,
 }) {}
 
 export class VaultTypeUpdate extends Struct({
@@ -52,7 +52,7 @@ export const OracleBlockDataProgram = ZkProgram({
     methods: {
         dummy: {
             privateInputs: [],
-            async method(publicInput: OracleBlockDataProofPublicInput): Promise<{ publicOutput: OracleBlockDataProofPublicOutput }> {
+            async method(_publicInput: OracleBlockDataProofPublicInput): Promise<{ publicOutput: OracleBlockDataProofPublicOutput }> {
                 return { publicOutput: OracleBlockDataProofPublicOutput.empty() };
             }
         }

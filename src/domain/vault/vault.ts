@@ -2,10 +2,11 @@ import {
   Struct,
   UInt64,
   Field,
-  Bool,
   UInt8,
+  Bool,
 } from 'o1js';
 import { VaultState } from './vault-state.js';
+import { CollateralType } from './vault-collateral-type.js';
 
 // Errors
 export const VaultErrors = {
@@ -39,6 +40,13 @@ export class VaultParameters extends Struct({
       this.liquidationBonusRatio.value,
       this.aprValueScaled.value,
     ]
+  }
+
+  equals(other: VaultParameters): Bool {
+    return this.debtCeiling.value.equals(other.debtCeiling.value)
+      .and(this.collateralRatio.value.equals(other.collateralRatio.value))
+      .and(this.liquidationBonusRatio.value.equals(other.liquidationBonusRatio.value))
+      .and(this.aprValueScaled.value.equals(other.aprValueScaled.value));
   }
 }
 
@@ -80,21 +88,65 @@ export function Vault(params: VaultParameters) {
     static MIN_HEALTH_FACTOR = UInt64.from(100); // The minimum health factor that the vault must maintain when adjusted
     static LIQUIDATION_BONUS_RATIO = params.liquidationBonusRatio.value; // The bonus ratio for liquidators when liquidating a vault
 
-    static new(vaultState: VaultState) {
-      return new Vault_(vaultState);
+    /**
+     * @notice  This method is used to initialize a new vault
+     * @returns The initialized vault
+     */
+    static new(type: CollateralType): Vault_ {
+      return new Vault_(new VaultState({
+        collateralAmount: UInt64.zero,
+        normalizedDebtAmount: UInt64.zero,
+        collateralType: type,
+      }));
+    }
+
+    static fromState(state: VaultState): Vault_ {
+      return new Vault_(state);
     }
     
-    //todo
     pack(): Field {
-      // const bits = [
-      //   ...this.type.value.toBits(8),
-      //   ...this.collateralAmount.value.toBits(64),
-      //   ...this.debtAmount.value.toBits(64),
-      // ];
-      // return Field.fromBits(bits);
-      return new Field(0);
+      return super.pack();
     }
+
+    static unpack(field: Field): Vault_ {
+      return new Vault_(VaultState.unpack(field));
+    }
+
+    /**
+     * @notice  This method is used to deposit collateral into the vault
+     * @param   amount - The amount of collateral to deposit
+     */
+    depositCollateral(amount: UInt64): void {
+      // Ensure deposit amount is positive
+      amount.assertGreaterThan(UInt64.zero, VaultErrors.AMOUNT_ZERO);
+      // Create new vault state with increased collateral
+      this.collateralAmount = this.collateralAmount.add(amount);
+    }
+
+    
+    /**
+     * @notice  This method is used to redeem collateral from the vault
+     * @param   amount - The amount of collateral to redeem
+     * @param   owner - The public key of the vault owner
+     * @param   minaPrice - The current price of MINA in nanoUSD
+     * @returns The new vault state after the redemption
+     */
+    redeemCollateral(
+      amount: UInt64,
+      minaPrice: UInt64
+    ): void {
+      // Ensure redemption amount is positive
+      amount.assertGreaterThan(UInt64.zero, VaultErrors.AMOUNT_ZERO);
+      
+      // TODO: not implemented
+      console.warn('TODO: not implemented')
+
+      this.collateralAmount = this.collateralAmount.sub(amount);
+    }
+
+
   }
+  
   
   return VaultClass;
 }

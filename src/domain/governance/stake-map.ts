@@ -4,7 +4,6 @@ import {
 } from '../../core/map/serializable-indexed-map.js';
 import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
-import { Field } from 'o1js';
 import { MerkleRoot } from '../../core/map/merkle-root.js';
 
 const STAKE_MAP_HEIGHT = 52; // 4,503,599,627,370,496 - 4.5 quadrillion
@@ -24,7 +23,7 @@ export class StakeMap extends StakeMapBase {
   /**
    * Get the root of the map
    */
-  getRoot(): MerkleRoot<StakeMap, any> {
+  getRoot(): MerkleRoot<StakeMap> {
     return new MerkleRoot({ root: this.root });
   }
 

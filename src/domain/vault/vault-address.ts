@@ -9,7 +9,7 @@ export class VaultAddress extends Struct({
     }
 
     static minaVaultKey(publicKey: PublicKey): VaultAddress {
-        return mkVaultKey(publicKey, CollateralType.MinaCollateralType());
+        return mkVaultKey(publicKey, CollateralType.MINA);
     }
 }
 

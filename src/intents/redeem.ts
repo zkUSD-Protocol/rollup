@@ -1,0 +1,71 @@
+import {
+  Field,
+  PublicKey,
+  Signature,
+  Struct,
+  UInt64,
+  ZkProgram,
+} from 'o1js';
+import { VaultAddress } from '../domain/vault/vault-address.js';
+import { DepositIntentUpdate, RedeemIntentUpdate } from '../domain/vault/vault-update.js';
+import { VaultMap } from '../domain/vault/vault-map.js';
+import { CollateralType } from '../domain/vault/vault-collateral-type.js';
+import { IoMap } from '../domain/bridging/io-map.js';
+import { MerkleRoot } from '../core/map/merkle-root.js';
+import { CollateralIOProof } from '../domain/bridging/prove-collateral-io.js';
+import { ObserverMap } from '../domain/enclave/zskud-enclaves-state.js';
+import { VaultParameters } from '../domain/vault/vault.js';
+
+export class RedeemIntentPreconditions extends Struct({
+  vaultParameters: VaultParameters,
+  observerKeysMerkleRoot: MerkleRoot<ObserverMap>,
+}) {}
+
+export class RedeemIntentOutput extends Struct({
+  update: RedeemIntentUpdate,
+}) {}
+
+export class RedeemIntentPrivateInput extends Struct({
+  ownerSignature: Signature,
+  ownerPublicKey: PublicKey,
+  amount: UInt64,
+  collateralType: CollateralType,
+}) {}
+
+// todo: make it better?
+export const RedeemIntentKey = Field.from('420420003');
+
+export const RedeemIntent = ZkProgram({
+  name: 'RedeemIntent',
+  publicInput: RedeemIntentPreconditions,
+  publicOutput: RedeemIntentOutput,
+  methods: {
+    redeem: {
+      privateInputs: [RedeemIntentPrivateInput],
+      async method(
+        publicInput: RedeemIntentPreconditions,
+        privateInput: RedeemIntentPrivateInput & { vaultMap: VaultMap, iomap: IoMap },
+      ): Promise<{ publicOutput: RedeemIntentOutput }> {
+
+        const { ownerSignature, ownerPublicKey, amount } = privateInput;
+
+        // signature message todo: make it better
+        const message: Field[] = [RedeemIntentKey, privateInput.collateralType.value.value, amount.value];
+
+        // Validate the owner's signature
+        const isValidSignature = ownerSignature.verify(ownerPublicKey, message);
+        isValidSignature.assertTrue('Invalid signature');
+
+        const vaultAddress = VaultAddress.fromPublicKey(ownerPublicKey, privateInput.collateralType);
+
+        return {
+          publicOutput: new RedeemIntentOutput({
+            update: new RedeemIntentUpdate({vaultAddress, collateralDelta: amount, collateralType: privateInput.collateralType}),
+          }),
+        };
+      },
+    },
+  },
+});
+
+export class RedeemIntentProof extends ZkProgram.Proof(RedeemIntent) {}

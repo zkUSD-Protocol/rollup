@@ -4,7 +4,6 @@ import {
 } from '../../core/map/serializable-indexed-map.js';
 import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
-import { Field } from 'o1js';
 import { MerkleRoot } from '../../core/map/merkle-root.js';
 
 const COUNCIL_MEMBER_MAP_HEIGHT = 6; // 2**(6-1) = 32
@@ -24,7 +23,7 @@ export class CouncilMemberMap extends CouncilMemberMapBase {
   /**
    * Get the root of the map
    */
-  getRoot(): MerkleRoot<CouncilMemberMap, any> {
+  getRoot(): MerkleRoot<CouncilMemberMap> {
     return new MerkleRoot({ root: this.root });
   }
 

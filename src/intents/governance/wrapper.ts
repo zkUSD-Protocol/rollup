@@ -25,7 +25,6 @@ export class GovActionIntentAction2PrivateInput extends Struct({
 // public inputs and output
 
 export class GovActionIntentInput extends Struct({
-	proposalMapRoot: MerkleRoot<ProposalMap, 'live'>,
 }) {}
 
 export class GovSystemUpdate extends Struct({
@@ -65,6 +64,7 @@ export class GovActionType extends Struct({
 }) {
 	static createProposal = new GovActionType({ enum: UInt8.from(0) });
 	static executeUpdate = new GovActionType({ enum: UInt8.from(1) });
+	static vetoProposal = new GovActionType({ enum: UInt8.from(2) });
 
 	toFields(): Field[] {
 		return [this.enum.value];

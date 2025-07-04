@@ -4,7 +4,6 @@ import {
 } from '../../core/map/serializable-indexed-map.js';
 import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
-import { Field } from 'o1js';
 import { MerkleRoot } from '../../core/map/merkle-root.js';
 import { FizkTokenState } from './fizk-token-state.js';
 import { FizkTokenUpdate } from './fizk-token-update.js';
@@ -26,7 +25,7 @@ export class FizkTokenMap extends FizkTokenMapBase {
   /**
    * Get the root of the map
    */
-  getRoot(): MerkleRoot<FizkTokenMap, any> {
+  getRoot(): MerkleRoot<FizkTokenMap> {
     return new MerkleRoot({ root: this.root });
   }
 
@@ -44,7 +43,7 @@ export class FizkTokenMap extends FizkTokenMapBase {
     return super.fromSerialized(data) as FizkTokenMap;
   }
 
-  verifyAndUpdate(state: FizkTokenState, update: FizkTokenUpdate) {
+  verifyAndUpdate(_state: FizkTokenState, _update: FizkTokenUpdate) {
   }
 }
 

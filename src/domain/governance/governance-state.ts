@@ -1,6 +1,6 @@
 import { Field, PublicKey, Struct, UInt64, UInt8 } from "o1js";
 import { ProposalMap } from "./proposal-map.js";
-import { MerkleRoot, RollupRoots } from "../../core/map/merkle-root.js";
+import { MerkleRoot } from "../../core/map/merkle-root.js";
 import { StakeMap } from "./stake-map.js";
 import { CouncilMemberMap } from "./council-member-map.js";
 
@@ -8,7 +8,7 @@ import { CouncilMemberMap } from "./council-member-map.js";
 export class GovernanceState extends Struct({
     forp: UInt64,
     
-    councilMembersMerkleRoot: MerkleRoot<CouncilMemberMap,'live'>,
+    councilMembersMerkleRoot: MerkleRoot<CouncilMemberMap>,
     councilSeatsSignatureTreshold: UInt8,
     assemblyProposalThreshold: UInt64,
     assemblyProposalVetoThreshold: UInt64,
@@ -20,9 +20,9 @@ export class GovernanceState extends Struct({
     globalGovRewardIndex: UInt64,
     totalAmountStaked: UInt64,
 
-    proposalMapRoot: RollupRoots<ProposalMap>(),
+    proposalMapRoot: MerkleRoot<ProposalMap>,
     lastProposalIndex: Field,
-    stakeMapRoot: RollupRoots<StakeMap>(),
+    stakeMapRoot: MerkleRoot<StakeMap>,
     
 }) {
     toFields(): Field[] {
@@ -37,11 +37,9 @@ export class GovernanceState extends Struct({
             ...this.minaSettlementKey.toFields(),
             this.globalGovRewardIndex.value,
             this.totalAmountStaked.value,
-            this.proposalMapRoot.intentRoot.root,
-            this.proposalMapRoot.liveRoot.root,
+            this.proposalMapRoot.root,
             this.lastProposalIndex,
-            this.stakeMapRoot.intentRoot.root,
-            this.stakeMapRoot.liveRoot.root,
+            this.stakeMapRoot.root,
         ];
     }
 
@@ -66,7 +64,7 @@ export class GovernanceState extends Struct({
 export class GovernanceStateUpdate extends Struct({
     forp: UInt64,
     
-    councilMembersMerkleRoot: MerkleRoot<CouncilMemberMap,'live'>,
+    councilMembersMerkleRoot: MerkleRoot<CouncilMemberMap>,
     councilSeatsSignatureTreshold: UInt8,
     assemblyProposalThreshold: UInt64,
     assemblyProposalVetoThreshold: UInt64,

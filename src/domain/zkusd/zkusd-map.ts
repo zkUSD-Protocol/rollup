@@ -4,7 +4,6 @@ import {
 } from '../../core/map/serializable-indexed-map.js';
 import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
-import { Field } from 'o1js';
 import { MerkleRoot } from '../../core/map/merkle-root.js';
 import { ZkUsdState } from './zkusd-state.js';
 import { ZkUsdUpdate } from './zkusd-update.js';
@@ -27,7 +26,7 @@ export class ZkUsdMap extends ZkUsdMapBase {
   /**
    * Get the root of the map
    */
-  getRoot(): MerkleRoot<ZkUsdMap, any> {
+  getRoot(): MerkleRoot<ZkUsdMap> {
     return new MerkleRoot({ root: this.root });
   }
 
@@ -50,7 +49,7 @@ export class ZkUsdMap extends ZkUsdMapBase {
 
         
         // the map root should be the same as the zkusd live root
-        this.getRoot().assertEquals(state.zkUsdMapRoot.liveRoot);
+        this.getRoot().assertEquals(state.zkUsdMapRoot);
 
         for (let i = 0; i < MAX_INPUT_NOTE_COUNT; i++) {
           const nullifier = nullifiers.nullifiers[i];

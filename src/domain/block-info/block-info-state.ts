@@ -7,7 +7,7 @@ export class BlockInfoState extends Struct({
     previousBlockClosureTimestamp: Timestamp,
     blockNumber: UInt64,
     intentSequence: UInt64,
-    historicalStateMerkleRoot: MerkleRoot<HistoricalBlockStateMap, 'live'>,
+    historicalStateMerkleRoot: MerkleRoot<HistoricalBlockStateMap>,
 }){
     toFields() : Field[] {
         return [

@@ -1,13 +1,13 @@
-import { createSerializableIndexedMap } from "../../core/map/serializable-indexed-map";
-import { MapPruner, PruningRequest } from "../../core/map/map-pruner";
-import { PrunedMapBase } from "../../core/map/pruned-map-base";
-import { SerializableMapData } from "../../core/map/serializable-indexed-map";
-import { MerkleRoot } from "../../core/map/merkle-root";
-import { ZkUsdVaults } from "./zkusd-vaults";
-import { VaultUpdate } from "./vault-update";
-import { Vault, VaultParameters, VaultTypeData } from "./vault";
+import { createSerializableIndexedMap } from "../../core/map/serializable-indexed-map.js";
+import { MapPruner, PruningRequest } from "../../core/map/map-pruner.js";
+import { PrunedMapBase } from "../../core/map/pruned-map-base.js";
+import { SerializableMapData } from "../../core/map/serializable-indexed-map.js";
+import { MerkleRoot } from "../../core/map/merkle-root.js";
+import { ZkUsdVaults } from "./zkusd-vaults.js";
+import { CreateVaultIntentUpdate, DepositIntentUpdate, RedeemIntentUpdate } from "./vault-update.js";
+import { Vault, VaultParameters } from "./vault.js";
 import { Provable } from "o1js";
-import { CollateralType } from "./vault-collateral-type";
+import { CollateralType } from "./vault-collateral-type.js";
 
 export const VAULT_MAP_HEIGHT = 20; // 1,048,576
 
@@ -37,46 +37,73 @@ export class VaultMap extends VaultMapBase {
     return super.fromSerialized(data) as VaultMap;
   }
 
-  getRoot(): MerkleRoot<VaultMap, any> {
+  getRoot(): MerkleRoot<VaultMap> {
     return new MerkleRoot({ root: this.root });
   }
 
-verifyAndInsert(state: ZkUsdVaults, update: VaultUpdate) {
-  const { vaultAddress, vaultState } = update;
-
+verifyAndInsert(state: ZkUsdVaults, update: CreateVaultIntentUpdate): MerkleRoot<VaultMap> {
+  const { vaultAddress, collateralType } = update;
+  
   // map is up-to-date wrt to the state
-  this.getRoot().assertEquals(state.vaultMapRoot.liveRoot);
+  this.getRoot().assertEquals(state.vaultMapRoot);
 
   // pick the parameters
-  const vaultParameters: VaultParameters = Provable.if(update.collateralType.equals(CollateralType.SuiCollateralType()),
+  const vaultParameters: VaultParameters = Provable.if(collateralType.equals(CollateralType.SUI),
     state.suiVaultTypeState.parameters,
     state.minaVaultTypeState.parameters
   );
 
   // recreate the vault from the state
-  const vault = Vault(vaultParameters).new(vaultState);
+  const vault = Vault(vaultParameters).new(collateralType);
   
   // Add the vault to the map
   this.insert(vaultAddress.key, vault.pack());
+
+  return this.getRoot();
 }
 
-verifyAndUpdate(state: ZkUsdVaults, update: VaultUpdate) {
-  const { vaultAddress, vaultState } = update;
+verifyAndRedeemCollateralUpdate(state: ZkUsdVaults,  update: RedeemIntentUpdate): MerkleRoot<VaultMap> {
+  const { vaultAddress, collateralDelta, collateralType } = update;
 
   // map is up-to-date wrt to the state
-  this.getRoot().assertEquals(state.vaultMapRoot.liveRoot);
+  this.getRoot().assertEquals(state.vaultMapRoot);
 
   // pick the parameters
-  const vaultParameters: VaultParameters = Provable.if(update.collateralType.equals(CollateralType.SuiCollateralType()),
+  const vaultParameters: VaultParameters = Provable.if(collateralType.equals(CollateralType.SUI),
     state.suiVaultTypeState.parameters,
     state.minaVaultTypeState.parameters
   );
 
   // recreate the vault from the state
-  const vault = Vault(vaultParameters).new(vaultState);
+  const vault = Vault(vaultParameters).unpack(this.get(vaultAddress.key));
+  vault.redeemCollateral(collateralDelta, state.minaVaultTypeState.priceNanoUsd);
   
   // Update the vault (it proves that the key exists)
   this.update(vaultAddress.key, vault.pack());
+
+  return this.getRoot();
+}
+
+verifyAndDepositCollateralUpdate(state: ZkUsdVaults,  update: DepositIntentUpdate): MerkleRoot<VaultMap> {
+  const { vaultAddress, collateralDelta, collateralType } = update;
+
+  // map is up-to-date wrt to the state
+  this.getRoot().assertEquals(state.vaultMapRoot);
+
+  // pick the parameters
+  const vaultParameters: VaultParameters = Provable.if(collateralType.equals(CollateralType.SUI),
+    state.suiVaultTypeState.parameters,
+    state.minaVaultTypeState.parameters
+  );
+
+  // recreate the vault from the state
+  const vault = Vault(vaultParameters).unpack(this.get(vaultAddress.key));
+  vault.depositCollateral(collateralDelta);
+  
+  // Update the vault (it proves that the key exists)
+  this.update(vaultAddress.key, vault.pack());
+
+  return this.getRoot();
 }
 
 

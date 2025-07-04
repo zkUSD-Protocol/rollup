@@ -4,7 +4,6 @@ import {
 } from '../../core/map/serializable-indexed-map.js';
 import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
-import { Field } from 'o1js';
 import { MerkleRoot } from '../../core/map/merkle-root.js';
 import { BlockInfoState } from './block-info-state.js';
 
@@ -25,7 +24,7 @@ export class HistoricalBlockStateMap extends HistoricalBlockStateMapBase {
   /**
    * Get the root of the map
    */
-  getRoot(): MerkleRoot<HistoricalBlockStateMap, any> {
+  getRoot(): MerkleRoot<HistoricalBlockStateMap> {
     return new MerkleRoot({ root: this.root });
   }
 
@@ -43,7 +42,7 @@ export class HistoricalBlockStateMap extends HistoricalBlockStateMapBase {
     return super.fromSerialized(data) as HistoricalBlockStateMap;
   }
 
-  verifyAndUpdate(state: BlockInfoState, update: BlockInfoState) {
+  verifyAndUpdate(_state: BlockInfoState, _update: BlockInfoState) {
   }
 }
 

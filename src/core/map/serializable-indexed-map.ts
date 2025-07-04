@@ -1,5 +1,4 @@
 import { Experimental, Field } from 'o1js';
-import { IndexedMerkleMapBase } from 'o1js/dist/node/lib/provable/merkle-tree-indexed';
 
 const { IndexedMerkleMap } = Experimental;
 

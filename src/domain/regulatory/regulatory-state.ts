@@ -5,7 +5,7 @@ class BlackListMap {}
 
 export class RegulatoryState extends Struct({
     auditPublicKey: PublicKey,
-    blackListMerkleRoot: MerkleRoot<BlackListMap, 'live'>,
+    blackListMerkleRoot: MerkleRoot<BlackListMap>,
 }){
     toFields(): Field[] {
         return [
