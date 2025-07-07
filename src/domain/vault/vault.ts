@@ -169,6 +169,46 @@ export function Vault(params: VaultParameters) {
       return newVaultState;
     }
 
+    /**
+     * @notice  This method is used to mint zkUSD against the vault
+     * @param   amount - The amount of zkUSD to mint
+     * @param   owner - The public key of the vault owner
+     * @param   minaPrice - The current price of MINA in nanoUSD
+     * @returns The new vault state after the mint
+     */
+    mintZkUsd(
+      amount: UInt64,
+      minaPriceNanoUsd: UInt64
+    ): VaultState {
+      amount.assertGreaterThan(UInt64.zero, VaultErrors.AMOUNT_ZERO);
+
+      // Calculate health factor after potential mint
+      const healthFactor = this.calculateHealthFactor(
+        this.collateralAmount,
+        this.normalizedDebtAmount.add(amount),
+        minaPriceNanoUsd
+      );
+
+      // Ensure vault remains healthy after minting
+      healthFactor.assertGreaterThanOrEqual(
+        Vault_.MIN_HEALTH_FACTOR.value,
+        VaultErrors.HEALTH_FACTOR_TOO_LOW
+      );
+
+      // Create new vault state with increased debt
+      const newVaultState = new VaultState({
+        collateralAmount: this.collateralAmount,
+        normalizedDebtAmount: this.normalizedDebtAmount.add(amount),
+        collateralType: this.collateralType,
+      });
+
+
+      return newVaultState;
+    }
+    calculateHealthFactor(collateralAmount: UInt64, debtAmount: UInt64, minaPriceNanoUsd: UInt64): Field {
+      throw new Error('Method not implemented.');
+    }
+
 
     toFields(): Field[] {
       return [

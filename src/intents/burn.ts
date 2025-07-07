@@ -8,7 +8,7 @@ import {
   ZkProgram,
 } from 'o1js';
 import { InputNotes, MAX_INPUT_NOTE_COUNT, Note, Nullifier, Nullifiers, OutputNoteCommitment, OutputNoteCommitments } from '../domain/zkusd/zkusd-note.js';
-import { DebtRepaymentUpdate } from '../domain/vault/vault-update.js';
+import { DebtRepaymentIntentUpdate } from '../domain/vault/vault-update.js';
 import { VaultAddress } from '../domain/vault/vault-address.js';
 import { Vault, VaultParameters } from '../domain/vault/vault.js';
 import { ZkusdMapUpdate } from '../state-updates/zkusd-map-update.js';
@@ -30,7 +30,7 @@ export class BurnIntentPreconditions extends Struct({
 // it contains a vault update that decreases the debt of the vault
 // and a zkusd map update that marks notes as spent
 export class BurnIntentOutput extends Struct({
-  vaultUpdate: DebtRepaymentUpdate,
+  vaultUpdate: DebtRepaymentIntentUpdate,
   zkusdMapUpdate: ZkusdMapUpdate,
 }) {}
 
@@ -137,7 +137,7 @@ export const BurnIntent = ZkProgram({
         vault.repayDebt(amount);
 
         //Create the vault update
-        const vaultUpdate = new DebtRepaymentUpdate({
+        const vaultUpdate = new DebtRepaymentIntentUpdate({
           vaultAddress: vaultAddress,
           debtDelta: amount,
           collateralType: collateralType,

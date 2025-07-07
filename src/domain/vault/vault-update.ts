@@ -36,7 +36,13 @@ export class VaultUpdate extends Struct({
   }
 }
 
-export class DebtRepaymentUpdate extends Struct({
+export class DebtRepaymentIntentUpdate extends Struct({
+  vaultAddress: VaultAddress,
+  debtDelta: UInt64,
+  collateralType: CollateralType,
+}) {}
+
+export class MintIntentUpdate extends Struct({
   vaultAddress: VaultAddress,
   debtDelta: UInt64,
   collateralType: CollateralType,

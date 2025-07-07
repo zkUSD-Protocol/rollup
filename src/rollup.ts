@@ -18,6 +18,7 @@ import { TransferIntentProof } from "./intents/transfer.js";
 import { MAX_INPUT_NOTE_COUNT, MAX_OUTPUT_NOTE_COUNT, Note, Nullifier } from "./domain/zkusd/zkusd-note.js";
 import { ZkUsdMap } from "./domain/zkusd/zkusd-map.js";
 import { BurnIntentProof } from "./intents/burn.js";
+import { MintIntentProof } from "./intents/mint.js";
 
 // make into a heler function
 function getActualVaultParams(publicInput: FizkRollupState, collateralType: CollateralType): VaultParameters {
@@ -198,6 +199,11 @@ export class BurnPrivateInput extends Struct({
 	vaultMap: VaultMap,
 	historicalBlockStateMap: HistoricalBlockStateMap,
 }) {}
+export class MintPrivateInput extends Struct({
+	proof: MintIntentProof,
+	zkusdMap: ZkUsdMap,
+	vaultMap: VaultMap,
+}) {}
 
 // general todo:
 // this methods are not atomic so if the execution breaks at some point then 
@@ -217,19 +223,21 @@ export const ZkusdRollup = ZkProgram({
         // Verify the intent proof
         privateInput.proof.verify();
 
+		// verify vault update
+		const verifiedVaultUpdate = privateInput.vaultMap.verifyCreateVaultUpdate(publicInput.vaultState,privateInput.proof.publicOutput.update);
 		
 		// Verify the io map root matches the live io map
 		const ioMap = privateInput.iomap;
 		ioMap.getRoot().assertEquals(publicInput.vaultState.ioMapRoot);
 
-        // Verify and update the vault map
-		const vaultMap = privateInput.vaultMap;
-		const newVaultMapRoot = vaultMap.verifyAndInsert(publicInput.vaultState,privateInput.proof.publicOutput.update);
-		publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
-		
 		// create io accumulators for the vault
 		ioMap.insert(privateInput.proof.publicOutput.update.vaultAddress.key, IOAccumulators.empty().pack());
 		publicInput.vaultState.ioMapRoot = ioMap.getRoot();
+
+        // update the vault map
+		const vaultMap = privateInput.vaultMap;
+		const newVaultMapRoot = vaultMap.verifiedInsert(verifiedVaultUpdate);
+		publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
 
         return {
           publicOutput: publicInput,
@@ -255,14 +263,17 @@ export const ZkusdRollup = ZkProgram({
 			const ioMap = privateInput.iomap;
 			ioMap.getRoot().assertEquals(publicInput.vaultState.ioMapRoot);
 			
-			// Verify and update the vault map
-			const vaultMap = privateInput.vaultMap;
-			const newVaultMapRoot = vaultMap.verifyAndDepositCollateralUpdate(publicInput.vaultState,update);
-			publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
+			// Verify vault update
+			const verifiedVaultUpdate = privateInput.vaultMap.verifyDepositCollateralUpdate(publicInput.vaultState,update);
 
 			// verify and update io map
 			const newIoMapRoot = ioMap.verifyAndDeposit(update.vaultAddress, update);
 			publicInput.vaultState.ioMapRoot = newIoMapRoot;
+
+			// update the vault map
+			const vaultMap = privateInput.vaultMap;
+			const newVaultMapRoot = vaultMap.verifiedUpdate(verifiedVaultUpdate);
+			publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
 
 
 			return {
@@ -290,14 +301,17 @@ export const ZkusdRollup = ZkProgram({
 				const iomap = privateInput.iomap;
 				iomap.getRoot().assertEquals(publicInput.vaultState.ioMapRoot);
 				
-				// verify and update the vault map
-				const vaultMap = privateInput.vaultMap;
-				const newVaultMapRoot = vaultMap.verifyAndRedeemCollateralUpdate(publicInput.vaultState,update);
-				publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
+				// verify vault update
+				const verifiedVaultUpdate = privateInput.vaultMap.verifyRedeemCollateralUpdate(publicInput.vaultState,update);
 				
 				// update io map
 				const newIoMapRoot = iomap.verifyAndWithdraw(update.vaultAddress, update);
 				publicInput.vaultState.ioMapRoot = newIoMapRoot;
+
+				// update the vault map
+				const vaultMap = privateInput.vaultMap;
+				const newVaultMapRoot = vaultMap.verifiedUpdate(verifiedVaultUpdate);
+				publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
 
 				return {
 					publicOutput: publicInput,
@@ -325,6 +339,8 @@ export const ZkusdRollup = ZkProgram({
 			// the block number must not be greater than the current block number
 			preconditions.noteSnapshotBlockNumber.assertLessThanOrEqual(publicInput.blockInfoState.blockNumber);
 			
+			// verify vault update
+			const verifiedVaultUpdate = privateInput.vaultMap.verifyRepayDebtUpdate(publicInput.vaultState,vaultUpdate);
 			// zkusd
 			const zkusdMap = privateInput.zkusdMap;
 			// verify and update the zkusd map
@@ -332,13 +348,38 @@ export const ZkusdRollup = ZkProgram({
 			publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
 			
 			// update the vault map
-			const newVaultMapRoot = privateInput.vaultMap.verifyAndRepayDebtUpdate(publicInput.vaultState,vaultUpdate);
+			const newVaultMapRoot = privateInput.vaultMap.verifiedUpdate(verifiedVaultUpdate);
 			publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
 
 			return {
 				publicOutput: publicInput,
 			};
 		},
+	},	
+
+	mint: {
+		privateInputs: [MintPrivateInput],
+		async method(
+			publicInput: FizkRollupState,
+			privateInput: MintPrivateInput & { zkusdMap: ZkUsdMap, vaultMap: VaultMap, historicalBlockStateMap: HistoricalBlockStateMap }): Promise<{ publicOutput: FizkRollupState }> {
+				// Verify the intent proof
+			privateInput.proof.verify();
+			const vaultUpdate = privateInput.proof.publicOutput.vaultUpdate;
+
+			// verify vault map update
+			const verifiedVaultUpdate = privateInput.vaultMap.verifyMintUpdate(publicInput.vaultState,vaultUpdate);
+			// verify and update zkusd map
+			const zkusdMap = privateInput.zkusdMap;
+			const newZkusdMapRoot = zkusdMap.verifyAndUpdate(publicInput.zkUsdState, privateInput.proof.publicOutput.zkusdMapUpdate);
+			publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
+			
+			// update the vault map
+			publicInput.vaultState.vaultMapRoot = privateInput.vaultMap.verifiedUpdate(verifiedVaultUpdate);
+			
+			return {
+				publicOutput: publicInput,
+			};
+		}
 	},	
 
 
