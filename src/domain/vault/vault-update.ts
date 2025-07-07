@@ -35,6 +35,12 @@ export class VaultUpdate extends Struct({
     });
   }
 }
+
+export class DebtRepaymentUpdate extends Struct({
+  vaultAddress: VaultAddress,
+  debtDelta: UInt64,
+  collateralType: CollateralType,
+}) {}
     
 export class DepositIntentUpdate extends Struct({
   vaultAddress: VaultAddress,

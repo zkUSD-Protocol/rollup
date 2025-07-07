@@ -17,6 +17,7 @@ import { RedeemIntentProof } from "./intents/redeem.js";
 import { TransferIntentProof } from "./intents/transfer.js";
 import { MAX_INPUT_NOTE_COUNT, MAX_OUTPUT_NOTE_COUNT, Note, Nullifier } from "./domain/zkusd/zkusd-note.js";
 import { ZkUsdMap } from "./domain/zkusd/zkusd-map.js";
+import { BurnIntentProof } from "./intents/burn.js";
 
 // make into a heler function
 function getActualVaultParams(publicInput: FizkRollupState, collateralType: CollateralType): VaultParameters {
@@ -191,6 +192,13 @@ export class TransferPrivateInput extends Struct({
 	proof: TransferIntentProof,
 }) {}
 
+export class BurnPrivateInput extends Struct({
+	proof: BurnIntentProof,
+	zkusdMap: ZkUsdMap,
+	vaultMap: VaultMap,
+	historicalBlockStateMap: HistoricalBlockStateMap,
+}) {}
+
 // general todo:
 // this methods are not atomic so if the execution breaks at some point then 
 // the state may end up being inconsistent.
@@ -297,6 +305,43 @@ export const ZkusdRollup = ZkProgram({
 			},
 	},	
 
+	burn: {
+		privateInputs: [BurnPrivateInput],
+		async method(
+			publicInput: FizkRollupState,
+			privateInput: BurnPrivateInput & { zkusdMap: ZkUsdMap, vaultMap: VaultMap, historicalBlockStateMap: HistoricalBlockStateMap }): Promise<{ publicOutput: FizkRollupState }> {
+				// Verify the intent proof
+			privateInput.proof.verify();
+
+			// -- 	Verify intent preconditions
+			const preconditions = privateInput.proof.publicInput;
+			const vaultUpdate = privateInput.proof.publicOutput.vaultUpdate;
+			const actualVaultParams = getActualVaultParams(publicInput, vaultUpdate.collateralType);
+			preconditions.vaultParameters.equals(actualVaultParams).assertTrue();
+			// historical proof check
+			privateInput.historicalBlockStateMap.getRoot().assertEquals(publicInput.blockInfoState.historicalStateMerkleRoot);
+			// the map must contain the block with the snapshot state
+			privateInput.historicalBlockStateMap.get(preconditions.noteSnapshotBlockNumber.value).assertEquals(preconditions.noteSnapshotBlockHash);
+			// the block number must not be greater than the current block number
+			preconditions.noteSnapshotBlockNumber.assertLessThanOrEqual(publicInput.blockInfoState.blockNumber);
+			
+			// zkusd
+			const zkusdMap = privateInput.zkusdMap;
+			// verify and update the zkusd map
+			const newZkusdMapRoot = zkusdMap.verifyAndUpdate(publicInput.zkUsdState, privateInput.proof.publicOutput.zkusdMapUpdate);
+			publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
+			
+			// update the vault map
+			const newVaultMapRoot = privateInput.vaultMap.verifyAndRepayDebtUpdate(publicInput.vaultState,vaultUpdate);
+			publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
+
+			return {
+				publicOutput: publicInput,
+			};
+		},
+	},	
+
+
 	transfer: {
 		privateInputs: [TransferPrivateInput],
 		async method(
@@ -304,7 +349,7 @@ export const ZkusdRollup = ZkProgram({
 			privateInput: TransferPrivateInput & { zkusdMap: ZkUsdMap, historicalBlockStateMap: HistoricalBlockStateMap }): Promise<{ publicOutput: FizkRollupState }> {
 				
         privateInput.proof.verify();
-        const { nullifiers, outputNoteCommitments } = privateInput.proof.publicOutput;
+        const { nullifiers, outputNoteCommitments } = privateInput.proof.publicOutput.zkusdMapUpdate;
         const { noteSnapshotBlockNumber, noteSnapshotBlockHash } = privateInput.proof.publicInput;
 
 		// verify the proof preconditions
@@ -316,29 +361,9 @@ export const ZkusdRollup = ZkProgram({
 		// now we know that the input notes used in the transfer intent were existing at this point of time.
 
 		const zkUsdMap = privateInput.zkusdMap;
-		// this must match the current state
-		zkUsdMap.getRoot().assertEquals(publicInput.zkUsdState.zkUsdMapRoot);
 		
-		// TODO: move to zkusdmap operation
-        for (let i = 0; i < MAX_INPUT_NOTE_COUNT; i++) {
-          const nullifier = nullifiers.nullifiers[i];
-          zkUsdMap.assertNotIncluded(nullifier.nullifier);
-          zkUsdMap.setIf(
-            nullifier.isDummy.not(),
-            nullifier.nullifier,
-            Nullifier.included()
-          );
-        }
-
-        for (let i = 0; i < MAX_OUTPUT_NOTE_COUNT; i++) {
-          const outputNoteCommitment = outputNoteCommitments.commitments[i];
-          zkUsdMap.assertNotIncluded(outputNoteCommitment.commitment);
-          zkUsdMap.setIf(
-            outputNoteCommitment.isDummy.not(),
-            outputNoteCommitment.commitment,
-            Note.included()
-          );
-        }
+		const newZkusdMapRoot = zkUsdMap.verifyAndUpdate(publicInput.zkUsdState, privateInput.proof.publicOutput.zkusdMapUpdate);
+		publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
 			
 			return {
 				publicOutput: publicInput,

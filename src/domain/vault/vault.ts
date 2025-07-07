@@ -4,6 +4,7 @@ import {
   Field,
   UInt8,
   Bool,
+  PublicKey,
 } from 'o1js';
 import { VaultState } from './vault-state.js';
 import { CollateralType } from './vault-collateral-type.js';
@@ -127,7 +128,6 @@ export function Vault(params: VaultParameters) {
     /**
      * @notice  This method is used to redeem collateral from the vault
      * @param   amount - The amount of collateral to redeem
-     * @param   owner - The public key of the vault owner
      * @param   minaPrice - The current price of MINA in nanoUSD
      * @returns The new vault state after the redemption
      */
@@ -144,6 +144,39 @@ export function Vault(params: VaultParameters) {
       this.collateralAmount = this.collateralAmount.sub(amount);
     }
 
+    /**
+     * @notice  This method is used to burn zkUSD against the vault
+     * @param   amount - The amount of zkUSD to burn
+     * @returns The new vault state after the burn
+     */
+    repayDebt(amount: UInt64): VaultState {
+      // Ensure repayment amount is positive
+      amount.assertGreaterThan(UInt64.zero, VaultErrors.AMOUNT_ZERO);
+
+      // Verify sufficient debt exists to burn
+      this.normalizedDebtAmount.assertGreaterThanOrEqual(
+        amount,
+        VaultErrors.AMOUNT_EXCEEDS_DEBT
+      );
+
+      // Create new vault state with reduced debt
+      const newVaultState = new VaultState({
+        collateralAmount: this.collateralAmount,
+        normalizedDebtAmount: this.normalizedDebtAmount.sub(amount),
+        collateralType: this.collateralType,
+      });
+
+      return newVaultState;
+    }
+
+
+    toFields(): Field[] {
+      return [
+        this.collateralAmount.value,
+        this.normalizedDebtAmount.value,
+        this.collateralType.value.value,
+      ];
+    }
 
   }
   

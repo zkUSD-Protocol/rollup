@@ -44,9 +44,8 @@ export class ZkUsdMap extends ZkUsdMapBase {
     return super.fromSerialized(data) as ZkUsdMap;
   }
 
-  verifyAndUpdate(state: ZkUsdState, update: ZkUsdUpdate) {
+  verifyAndUpdate(state: ZkUsdState, update: ZkUsdUpdate): MerkleRoot<ZkUsdMap> {
         const { nullifiers, outputNoteCommitments } = update;
-
         
         // the map root should be the same as the zkusd live root
         this.getRoot().assertEquals(state.zkUsdMapRoot);
@@ -70,8 +69,10 @@ export class ZkUsdMap extends ZkUsdMapBase {
             Nullifier.included()
           );
         }
-      }
+      
+      return this.getRoot();
   }
+}
 
 export class PrunedZkUsdMap extends PrunedMapBase {
   constructor(data: SerializableMapData) {

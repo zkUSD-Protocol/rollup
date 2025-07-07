@@ -11,15 +11,17 @@ import {
 import { InputNotes, MAX_INPUT_NOTE_COUNT, MAX_OUTPUT_NOTE_COUNT, Nullifier, Nullifiers, OutputNoteCommitment, OutputNoteCommitments, OutputNotes } from '../domain/zkusd/zkusd-note.js';
 import { ZkUsdMap } from '../domain/zkusd/zkusd-map.js';
 import { FizkRollupState } from '../domain/rollup-state.js';
+import { ZkusdMapUpdate } from '../state-updates/zkusd-map-update.js';
+import { verifyNoteSnapshotState } from './helpers.js';
+
 
 export class TransferIntentPreconditions extends Struct({
-    noteSnapshotBlockNumber: UInt64,
+    noteSnapshotBlockNumber: UInt64, // the number is unbound at the intent level, but it will be used to find and verify the snapshot state at the rollup level.
     noteSnapshotBlockHash: Field,
 }) {}
 
 export class TransferIntentOutput extends Struct({
-  nullifiers: Nullifiers,
-  outputNoteCommitments: OutputNoteCommitments,
+  zkusdMapUpdate: ZkusdMapUpdate,
 }) {}
 
 export class TransferIntentPrivateInput extends Struct({
@@ -45,17 +47,12 @@ export const TransferIntent = ZkProgram({
         const nullifiers = Nullifiers.empty();
         const outputNoteCommitments = OutputNoteCommitments.empty();
 
-        // verify that the state of the historical block is correct
-        // and assigned to the output number
-        const blockNumber = privateInput.noteSnapshotState.blockInfoState.blockNumber;
-        blockNumber.assertEquals(publicInput.noteSnapshotBlockNumber);
-        // the state matches the one in the block info
-        const stateHash = Poseidon.hash(privateInput.noteSnapshotState.toFields());
-        stateHash.assertEquals(publicInput.noteSnapshotBlockHash);
-        // now we have roots of the zkusd map available
-
-        const zkusdMapRoot = privateInput.noteSnapshotState.zkUsdState.zkUsdMapRoot;
-        zkusdMapRoot.assertEquals(privateInput.zkusdMap.getRoot());
+        // Verify note snapshot state
+        verifyNoteSnapshotState(
+          privateInput.noteSnapshotState,
+          privateInput.zkusdMap,
+          publicInput.noteSnapshotBlockHash
+        );
 
         const {
           inputNotes,
@@ -133,8 +130,10 @@ export const TransferIntent = ZkProgram({
 
         return {
           publicOutput: {
-            nullifiers,
-            outputNoteCommitments,
+            zkusdMapUpdate: {
+              nullifiers,
+              outputNoteCommitments,
+            },
           },
         };
       },

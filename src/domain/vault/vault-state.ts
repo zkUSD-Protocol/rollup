@@ -2,6 +2,7 @@ import {
   Struct,
   UInt64,
   Field,
+  PublicKey,
 } from 'o1js';
 import { CollateralType } from './vault-collateral-type.js';
 
