@@ -10,7 +10,7 @@ import {
 import { InputNotes, MAX_INPUT_NOTE_COUNT, Note, Nullifier, Nullifiers, OutputNoteCommitment, OutputNoteCommitments } from '../domain/zkusd/zkusd-note.js';
 import { DebtRepaymentIntentUpdate } from '../domain/vault/vault-update.js';
 import { VaultAddress } from '../domain/vault/vault-address.js';
-import { Vault, VaultParameters } from '../domain/vault/vault.js';
+import { VaultParameters } from '../domain/vault/vault.js';
 import { ZkusdMapUpdate } from '../state-updates/zkusd-map-update.js';
 import { CollateralType } from '../domain/vault/vault-collateral-type.js';
 import { ZkUsdMap } from '../domain/zkusd/zkusd-map.js';
@@ -48,6 +48,8 @@ export class BurnIntentPrivateInput extends Struct({
   collateralType: CollateralType,
 }) {}
 
+export const BurnIntentKey = Field.from('421902410912840918213124091811240') // TODO replace with something more structured
+
 export const BurnIntent = ZkProgram({
   name: 'BurnIntent',
   publicInput: BurnIntentPreconditions,
@@ -84,12 +86,9 @@ export const BurnIntent = ZkProgram({
 
         const vaultAddress = VaultAddress.fromPublicKey(ownerPublicKey, collateralType);
 
-        //Get the vault
-        const vault = Vault(publicInput.vaultParameters).unpack(zkusdMap.get(vaultAddress.key));
-
         //Verify the owner signature
-        ownerSignature.verify(ownerPublicKey, vault.toFields());
-
+        const message = [BurnIntentKey, vaultAddress.key, amount.value];
+        ownerSignature.verify(ownerPublicKey, message);
         spendingSignature.verify(spendingPublicKey, inputNotes.toFields());
 
         let valueIn = UInt64.zero;
@@ -132,9 +131,6 @@ export const BurnIntent = ZkProgram({
 
         //Ensure the input amount is the same as the output amount + the amount to burn
         amount.add(outN.amount).assertEquals(valueIn);
-
-        //Burn the zkusd
-        vault.repayDebt(amount);
 
         //Create the vault update
         const vaultUpdate = new DebtRepaymentIntentUpdate({

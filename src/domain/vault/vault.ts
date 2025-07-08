@@ -52,25 +52,6 @@ export class VaultParameters extends Struct({
 }
 
 
-export class VaultTypeData extends Struct({
-  parameters: VaultParameters,
-  priceNanoUsd: UInt64,
-  globalAccumulativeInterestRateScaled: UInt64,
-  lastUpdateTimestampSec: UInt64,
-  totalNda: UInt64,
-}) {
-
-  toFields(): Field[] {
-    return [
-      ...this.parameters.toFields(),
-      this.priceNanoUsd.value,
-      ...this.globalAccumulativeInterestRateScaled.toFields(),
-      this.lastUpdateTimestampSec.value,
-      this.totalNda.value,
-    ];
-  }
-}
-
 
 /**
  * @title   Vault Struct
@@ -149,7 +130,9 @@ export function Vault(params: VaultParameters) {
      * @param   amount - The amount of zkUSD to burn
      * @returns The new vault state after the burn
      */
-    repayDebt(amount: UInt64): VaultState {
+    repayDebt(amount: UInt64, interestRateScaled: UInt64): VaultState {
+      // TODO: include rate
+      console.warn('TODO: include rate')
       // Ensure repayment amount is positive
       amount.assertGreaterThan(UInt64.zero, VaultErrors.AMOUNT_ZERO);
 
@@ -178,8 +161,11 @@ export function Vault(params: VaultParameters) {
      */
     mintZkUsd(
       amount: UInt64,
-      minaPriceNanoUsd: UInt64
+      minaPriceNanoUsd: UInt64,
+      interestRateScaled: UInt64,
     ): VaultState {
+      // TODO
+      console.warn("TODO: include rate")
       amount.assertGreaterThan(UInt64.zero, VaultErrors.AMOUNT_ZERO);
 
       // Calculate health factor after potential mint
@@ -222,4 +208,27 @@ export function Vault(params: VaultParameters) {
   
   
   return VaultClass;
+}
+
+export class VaultTypeData extends Struct({
+  parameters: VaultParameters,
+  priceNanoUsd: UInt64,
+  globalAccumulativeInterestRateScaled: UInt64,
+  lastUpdateTimestampSec: UInt64,
+  totalNda: UInt64,
+}) {
+
+  toFields(): Field[] {
+    return [
+      ...this.parameters.toFields(),
+      this.priceNanoUsd.value,
+      ...this.globalAccumulativeInterestRateScaled.toFields(),
+      this.lastUpdateTimestampSec.value,
+      this.totalNda.value,
+    ];
+  }
+
+  Vault(): ReturnType<typeof Vault> {
+    return Vault(this.parameters);
+  }
 }

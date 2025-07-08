@@ -5,7 +5,7 @@ import { SerializableMapData } from "../../core/map/serializable-indexed-map.js"
 import { MerkleRoot } from "../../core/map/merkle-root.js";
 import { ZkUsdVaults } from "./zkusd-vaults.js";
 import { CreateVaultIntentUpdate, DebtRepaymentIntentUpdate, DepositIntentUpdate, MintIntentUpdate, RedeemIntentUpdate } from "./vault-update.js";
-import { Vault, VaultParameters } from "./vault.js";
+import { Vault, VaultParameters, VaultTypeData } from "./vault.js";
 import { Bool, Field, Provable, Struct, UInt8 } from "o1js";
 import { CollateralType } from "./vault-collateral-type.js";
 import { VaultAddress } from "./vault-address.js";
@@ -77,9 +77,6 @@ export class VaultMap extends VaultMapBase {
     vaultAddress: VaultAddress,
     collateralType: CollateralType
   ) {
-    // map is up-to-date wrt to the state
-    this.getRoot().assertEquals(state.vaultMapRoot);
-
     // pick the parameters
     const vaultParameters: VaultParameters = Provable.if(
       collateralType.equals(CollateralType.SUI),
@@ -91,9 +88,40 @@ export class VaultMap extends VaultMapBase {
     return Vault(vaultParameters).unpack(this.get(vaultAddress.key));
   }
 
+  private getVaultFromVaultTypeData(
+    vaultTypeData: VaultTypeData,
+    vaultAddress: VaultAddress
+  ) {
+    return vaultTypeData.Vault().unpack(this.get(vaultAddress.key));
+  }
+
+  /**
+   * Retrieves a vault from the map after verifying the map root and getting the correct parameters
+   * @param state The current vault state
+   * @param vaultAddress The address of the vault to retrieve
+   * @param collateralType The collateral type of the vault
+   * @returns The unpacked Vault instance
+   */
+  private getVaultTypeData(
+    state: ZkUsdVaults,
+    vaultAddress: VaultAddress,
+    collateralType: CollateralType
+  ) {
+    // pick the parameters
+    const vaultTypeData: VaultTypeData = Provable.if(
+      collateralType.equals(CollateralType.SUI),
+      state.suiVaultTypeState,
+      state.minaVaultTypeState
+    );
+
+    return vaultTypeData;
+  }
+
 verifyCreateVaultUpdate(state: ZkUsdVaults, update: CreateVaultIntentUpdate): VerifiedMapUpdate {
   const { vaultAddress, collateralType } = update;
-  
+  // map is up-to-date wrt to the state
+  this.getRoot().assertEquals(state.vaultMapRoot);
+
   // assert vaultAddress does not exist
   this.assertNotIncluded(vaultAddress.key);
 
@@ -108,6 +136,9 @@ verifyCreateVaultUpdate(state: ZkUsdVaults, update: CreateVaultIntentUpdate): Ve
 
 verifyRedeemCollateralUpdate(state: ZkUsdVaults,  update: RedeemIntentUpdate): VerifiedMapUpdate {
   const { vaultAddress, collateralDelta, collateralType } = update;
+
+  // map is up-to-date wrt to the state
+  this.getRoot().assertEquals(state.vaultMapRoot);
 
   // assert vaultAddress exists
   this.assertIncluded(vaultAddress.key);
@@ -126,6 +157,9 @@ verifyRedeemCollateralUpdate(state: ZkUsdVaults,  update: RedeemIntentUpdate): V
 verifyDepositCollateralUpdate(state: ZkUsdVaults,  update: DepositIntentUpdate): VerifiedMapUpdate {
   const { vaultAddress, collateralDelta, collateralType } = update;
 
+  // map is up-to-date wrt to the state
+  this.getRoot().assertEquals(state.vaultMapRoot);
+
   // assert vaultAddress exists
   this.assertIncluded(vaultAddress.key);
 
@@ -143,13 +177,17 @@ verifyDepositCollateralUpdate(state: ZkUsdVaults,  update: DepositIntentUpdate):
 verifyRepayDebtUpdate(state: ZkUsdVaults,  update: DebtRepaymentIntentUpdate): VerifiedMapUpdate {
   const { vaultAddress, debtDelta, collateralType } = update;
 
+  // map is up-to-date wrt to the state
+  this.getRoot().assertEquals(state.vaultMapRoot);
+
   // assert vaultAddress exists
   this.assertIncluded(vaultAddress.key);
 
   // recreate the vault from the state
-  const vault = this.getVault(state, vaultAddress, collateralType);
+  const vaultTypeData = this.getVaultTypeData(state, vaultAddress, collateralType);
+  const vault = this.getVaultFromVaultTypeData(vaultTypeData, vaultAddress);
 
-  vault.repayDebt(debtDelta);
+  vault.repayDebt(debtDelta, vaultTypeData.globalAccumulativeInterestRateScaled);
   
   return new VerifiedMapUpdate({
     vaultAddress: vaultAddress,
@@ -160,13 +198,17 @@ verifyRepayDebtUpdate(state: ZkUsdVaults,  update: DebtRepaymentIntentUpdate): V
 verifyMintUpdate(state: ZkUsdVaults,  update: MintIntentUpdate): VerifiedMapUpdate {
   const { vaultAddress, debtDelta, collateralType } = update;
 
+  // map is up-to-date wrt to the state
+  this.getRoot().assertEquals(state.vaultMapRoot);
+
   // assert vaultAddress exists
   this.assertIncluded(vaultAddress.key);
 
   // recreate the vault from the state
-  const vault = this.getVault(state, vaultAddress, collateralType);
+  const vaultTypeData = this.getVaultTypeData(state, vaultAddress, collateralType);
+  const vault = this.getVaultFromVaultTypeData(vaultTypeData, vaultAddress);
 
-  vault.mintZkUsd(debtDelta, state.minaVaultTypeState.priceNanoUsd);
+  vault.mintZkUsd(debtDelta, state.minaVaultTypeState.priceNanoUsd, vaultTypeData.globalAccumulativeInterestRateScaled);
   
   return new VerifiedMapUpdate({
     vaultAddress: vaultAddress,

@@ -362,9 +362,31 @@ export const ZkusdRollup = ZkProgram({
 		async method(
 			publicInput: FizkRollupState,
 			privateInput: MintPrivateInput & { zkusdMap: ZkUsdMap, vaultMap: VaultMap, historicalBlockStateMap: HistoricalBlockStateMap }): Promise<{ publicOutput: FizkRollupState }> {
-				// Verify the intent proof
+			// == Verify the intent proof
 			privateInput.proof.verify();
 			const vaultUpdate = privateInput.proof.publicOutput.vaultUpdate;
+
+			// == Verify preconditions
+			const currentBlockNumber = publicInput.blockInfoState.blockNumber;
+			const priceBlockNumber = privateInput.proof.publicInput.rollupStateBlockNumber;
+
+			// pick the price from the rollup state
+			const collateralPriceNanoUsd = Provable.if(vaultUpdate.collateralType.equals(CollateralType.SUI), publicInput.vaultState.suiVaultTypeState.priceNanoUsd, publicInput.vaultState.minaVaultTypeState.priceNanoUsd);
+
+			// verify state hash
+			const currentStateCondition = currentBlockNumber.equals(priceBlockNumber).and(
+				privateInput.proof.publicInput.collateralPriceNanoUsd.equals(collateralPriceNanoUsd)
+			)
+
+			// get historical state from the historical block state map
+			const previousBlockStateHash = privateInput.historicalBlockStateMap.get(priceBlockNumber.value);
+
+			const previousStateCondition = currentBlockNumber.sub(1).equals(priceBlockNumber).and(
+				previousBlockStateHash.equals(privateInput.proof.publicInput.rollupStateHash)
+			);
+
+			// its either the current block or the previous block
+			currentStateCondition.or(previousStateCondition).assertTrue();
 
 			// verify vault map update
 			const verifiedVaultUpdate = privateInput.vaultMap.verifyMintUpdate(publicInput.vaultState,vaultUpdate);

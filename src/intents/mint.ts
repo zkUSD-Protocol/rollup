@@ -1,5 +1,6 @@
 import {
   Field,
+  Poseidon,
   PublicKey,
   Signature,
   Struct,
@@ -8,16 +9,16 @@ import {
 } from 'o1js';
 import { ZkUsdMap } from '../domain/zkusd/zkusd-map.js';
 import { Note, Nullifiers, OutputNoteCommitment, OutputNoteCommitments } from '../domain/zkusd/zkusd-note.js';
-import { VaultMap } from '../domain/vault/vault-map.js';
-import { Vault, VaultParameters } from '../domain/vault/vault.js';
 import { VaultAddress } from '../domain/vault/vault-address.js';
 import { ZkusdMapUpdate } from '../state-updates/zkusd-map-update.js';
 import { CollateralType } from '../domain/vault/vault-collateral-type.js';
 import { MintIntentUpdate } from '../domain/vault/vault-update.js';
+import { FizkRollupState } from '../domain/rollup-state.js';
 
 export class MintIntentPreconditions extends Struct({
-    vaultParameters: VaultParameters,
     collateralPriceNanoUsd: UInt64,
+    rollupStateHash: Field,
+    rollupStateBlockNumber: UInt64,
 }) {}
 
 export class MintIntentOutput extends Struct({
@@ -30,8 +31,10 @@ export class MintIntentPrivateInput extends Struct({
   collateralType: CollateralType,
   ownerSignature: Signature,
   ownerPublicKey: PublicKey,
-  vaultMap: VaultMap,
+  rollupState: FizkRollupState,
 }) {}
+
+const MintIntentKey = Field.from('42190241091284091824091811240') // TODO replace with something more structured
 
 export const MintIntent = ZkProgram({
   name: 'MintIntent',
@@ -47,21 +50,19 @@ export const MintIntent = ZkProgram({
         const {
           note,
           collateralType,
-          ownerSignature,
           ownerPublicKey,
-          vaultMap,
+          rollupState,
+          ownerSignature,
         } = privateInput;
 
+        // verify rollup state hash
+        Poseidon.hash(rollupState.toFields()).assertEquals(publicInput.rollupStateHash);
+
+        // verify signature
+        const message = [MintIntentKey, note.hash()]
+        ownerSignature.verify(ownerPublicKey, message);
+
         const vaultAddress = VaultAddress.fromPublicKey(ownerPublicKey, collateralType);
-
-        //Get the vault
-        const vault = Vault(publicInput.vaultParameters).unpack(vaultMap.get(vaultAddress.key));
-
-        //Verify the owner signature
-        ownerSignature.verify(ownerPublicKey, vault.toFields());
-
-        //Mint the zkusd
-        vault.mintZkUsd(note.amount, publicInput.collateralPriceNanoUsd);
 
         const outputNoteCommitment = OutputNoteCommitment.create(note.hash());
 
@@ -73,7 +74,7 @@ export const MintIntent = ZkProgram({
 
         return {
           publicOutput: {
-                vaultUpdate,
+            vaultUpdate,
             zkusdMapUpdate: new ZkusdMapUpdate({
               nullifiers: Nullifiers.empty(),
               outputNoteCommitments: new OutputNoteCommitments({commitments: [outputNoteCommitment]})
