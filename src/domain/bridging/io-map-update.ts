@@ -23,3 +23,13 @@ export class IoMapUpdate extends Struct({
     }
 } 
     
+
+export class BridgeIntentUpdate extends Struct({
+  vaultAddress: VaultAddress,
+  amount: UInt64,
+}) {}
+
+export class BridgeBackIntentUpdate extends Struct({
+  vaultAddress: VaultAddress,
+  amount: UInt64,
+}) {}

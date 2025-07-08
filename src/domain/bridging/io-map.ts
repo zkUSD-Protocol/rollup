@@ -8,11 +8,20 @@ import { MerkleRoot } from '../../core/map/merkle-root.js';
 import { IOAccumulators } from './io-accumulators.js';
 import { VaultAddress } from '../vault/vault-address.js';
 import { DepositIntentUpdate, RedeemIntentUpdate } from '../vault/vault-update.js';
+import { VerifiedMapUpdate } from '../vault/vault-map.js';
+import { Field, Struct, UInt64 } from 'o1js';
+import { BridgeBackIntentUpdate, BridgeIntentUpdate } from './io-map-update.js';
 
 const IO_MAP_HEIGHT = 52; // 4,503,599,627,370,496 - 4.5 quadrillion
 
 // Create base serializable map
 const IoMapBase = createSerializableIndexedMap(IO_MAP_HEIGHT);
+
+export class VerifiedAccumulatorsUpdate extends Struct({
+  vaultAddress: VaultAddress,
+  newIoAccumulatorsState: IOAccumulators,
+}) {}
+
 
 export class IoMap extends IoMapBase {
   /**
@@ -33,20 +42,59 @@ export class IoMap extends IoMapBase {
   getAccumulators(address: VaultAddress): IOAccumulators {
     return IOAccumulators.unpack(this.get(address.key));
   }
-  verifyAndWithdraw(address: VaultAddress, update: RedeemIntentUpdate): MerkleRoot<IoMap> {
-    const oldAccumulators = this.getAccumulators(address);
 
-    // update the map
-    this.update(address.key, new IOAccumulators({
-      totalDeposits: oldAccumulators.totalDeposits,
-      totalWithdrawals: oldAccumulators.totalWithdrawals.add(update.collateralDelta),
-    }).pack());
-    
+  createAccumulatorsForAddress(address: VaultAddress): MerkleRoot<IoMap> {
+    const io = new IOAccumulators({
+      totalDeposits: UInt64.from(0),
+      totalWithdrawals: UInt64.from(0),
+    });
+    this.insert(address.key, io.pack());
     return this.getRoot();
   }
 
-  verifyAndDeposit(address: VaultAddress, update: DepositIntentUpdate): MerkleRoot<IoMap> {
-    const oldAccumulators = this.getAccumulators(address);
+  verifiedUpdate(update: VerifiedAccumulatorsUpdate): MerkleRoot<IoMap> {
+    this.update(update.vaultAddress.key, update.newIoAccumulatorsState.pack());
+    return this.getRoot();
+  }
+
+  verifyWithdraw(update: RedeemIntentUpdate): VerifiedAccumulatorsUpdate {
+    const oldAccumulators = this.getAccumulators(update.vaultAddress);
+
+    return new VerifiedAccumulatorsUpdate({
+      vaultAddress: update.vaultAddress,
+      newIoAccumulatorsState: new IOAccumulators({
+        totalDeposits: oldAccumulators.totalDeposits,
+        totalWithdrawals: oldAccumulators.totalWithdrawals.add(update.collateralDelta),
+      }),
+    });
+  }
+
+  verifyBridge(update: BridgeIntentUpdate): VerifiedAccumulatorsUpdate {
+    const oldAccumulators = this.getAccumulators(update.vaultAddress);
+
+    return new VerifiedAccumulatorsUpdate({
+      vaultAddress: update.vaultAddress,
+      newIoAccumulatorsState: new IOAccumulators({
+        totalDeposits: oldAccumulators.totalDeposits.add(update.amount),
+        totalWithdrawals: oldAccumulators.totalWithdrawals,
+      }),
+    });
+  }
+
+  verifyBridgeBack(update: BridgeBackIntentUpdate): VerifiedAccumulatorsUpdate {
+    const oldAccumulators = this.getAccumulators(update.vaultAddress);
+
+    return new VerifiedAccumulatorsUpdate({
+      vaultAddress: update.vaultAddress,
+      newIoAccumulatorsState: new IOAccumulators({
+        totalDeposits: oldAccumulators.totalDeposits.sub(update.amount),
+        totalWithdrawals: oldAccumulators.totalWithdrawals,
+      }),
+    });
+  }
+
+  verifyDeposit(update: DepositIntentUpdate): VerifiedAccumulatorsUpdate{
+    const oldAccumulators = this.getAccumulators(update.vaultAddress);
 
 		// deposits must be bigger
 		oldAccumulators.totalDeposits.assertLessThan(update.newIoMapTotalDeposits);
@@ -54,13 +102,13 @@ export class IoMap extends IoMapBase {
 		// deposit amount must be less or equal to the delta
 		update.collateralDelta.assertLessThanOrEqual(delta);
 
-    // update the map
-    this.update(address.key, new IOAccumulators({
-      totalDeposits: update.newIoMapTotalDeposits,
-      totalWithdrawals: oldAccumulators.totalWithdrawals,
-    }).pack());
-
-    return this.getRoot();
+    return new VerifiedAccumulatorsUpdate({
+      vaultAddress: update.vaultAddress,
+      newIoAccumulatorsState: new IOAccumulators({
+        totalDeposits: update.newIoMapTotalDeposits,
+        totalWithdrawals: oldAccumulators.totalWithdrawals,
+      }),
+    });
   }
 
   /**

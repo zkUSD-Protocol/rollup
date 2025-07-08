@@ -7,18 +7,12 @@ import {
   ZkProgram,
 } from 'o1js';
 import { VaultAddress } from '../domain/vault/vault-address.js';
-import { DepositIntentUpdate, RedeemIntentUpdate } from '../domain/vault/vault-update.js';
-import { VaultMap } from '../domain/vault/vault-map.js';
+import { RedeemIntentUpdate } from '../domain/vault/vault-update.js';
 import { CollateralType } from '../domain/vault/vault-collateral-type.js';
-import { IoMap } from '../domain/bridging/io-map.js';
-import { MerkleRoot } from '../core/map/merkle-root.js';
-import { CollateralIOProof } from '../domain/bridging/prove-collateral-io.js';
-import { ObserverMap } from '../domain/enclave/zskud-enclaves-state.js';
 import { VaultParameters } from '../domain/vault/vault.js';
 
 export class RedeemIntentPreconditions extends Struct({
   vaultParameters: VaultParameters,
-  observerKeysMerkleRoot: MerkleRoot<ObserverMap>,
 }) {}
 
 export class RedeemIntentOutput extends Struct({
@@ -44,7 +38,7 @@ export const RedeemIntent = ZkProgram({
       privateInputs: [RedeemIntentPrivateInput],
       async method(
         publicInput: RedeemIntentPreconditions,
-        privateInput: RedeemIntentPrivateInput & { vaultMap: VaultMap, iomap: IoMap },
+        privateInput: RedeemIntentPrivateInput,
       ): Promise<{ publicOutput: RedeemIntentOutput }> {
 
         const { ownerSignature, ownerPublicKey, amount } = privateInput;

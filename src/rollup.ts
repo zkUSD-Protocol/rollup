@@ -204,6 +204,12 @@ export class MintPrivateInput extends Struct({
 	zkusdMap: ZkUsdMap,
 	vaultMap: VaultMap,
 }) {}
+// export class BridgePrivateInput extends Struct({
+// 	proof: BridgeIntentProof,
+// 	zkusdMap: ZkUsdMap,
+// 	ioMap: IoMap,
+// 	historicalBlockStateMap: HistoricalBlockStateMap,
+// }) {}
 
 // general todo:
 // this methods are not atomic so if the execution breaks at some point then 
@@ -267,8 +273,8 @@ export const ZkusdRollup = ZkProgram({
 			const verifiedVaultUpdate = privateInput.vaultMap.verifyDepositCollateralUpdate(publicInput.vaultState,update);
 
 			// verify and update io map
-			const newIoMapRoot = ioMap.verifyAndDeposit(update.vaultAddress, update);
-			publicInput.vaultState.ioMapRoot = newIoMapRoot;
+			const verifiedIoUpdate = ioMap.verifyDeposit(update);
+			publicInput.vaultState.ioMapRoot = ioMap.verifiedUpdate(verifiedIoUpdate);
 
 			// update the vault map
 			const vaultMap = privateInput.vaultMap;
@@ -295,7 +301,6 @@ export const ZkusdRollup = ZkProgram({
 				const preconditions = privateInput.proof.publicInput;
 				const actualVaultParams = getActualVaultParams(publicInput, update.collateralType);
 				preconditions.vaultParameters.equals(actualVaultParams).assertTrue();
-				preconditions.observerKeysMerkleRoot.assertEquals(publicInput.zkUsdEnclavesState.observerKeysMerkleRoot);
 				
 				// Verify that iomap is up-to-date
 				const iomap = privateInput.iomap;
@@ -305,12 +310,11 @@ export const ZkusdRollup = ZkProgram({
 				const verifiedVaultUpdate = privateInput.vaultMap.verifyRedeemCollateralUpdate(publicInput.vaultState,update);
 				
 				// update io map
-				const newIoMapRoot = iomap.verifyAndWithdraw(update.vaultAddress, update);
-				publicInput.vaultState.ioMapRoot = newIoMapRoot;
+				const verifiedIoUpdate = iomap.verifyWithdraw(update);
+				publicInput.vaultState.ioMapRoot = iomap.verifiedUpdate(verifiedIoUpdate);
 
 				// update the vault map
-				const vaultMap = privateInput.vaultMap;
-				const newVaultMapRoot = vaultMap.verifiedUpdate(verifiedVaultUpdate);
+				const newVaultMapRoot = privateInput.vaultMap.verifiedUpdate(verifiedVaultUpdate);
 				publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
 
 				return {
@@ -318,6 +322,40 @@ export const ZkusdRollup = ZkProgram({
 				};
 			},
 	},	
+
+	// bridge: {
+	// 	privateInputs: [BridgePrivateInput],
+	// 	async method(
+	// 		publicInput: FizkRollupState,
+	// 		privateInput: BridgePrivateInput & { zkusdMap: ZkUsdMap, ioMap: IoMap, historicalBlockStateMap: HistoricalBlockStateMap }): Promise<{ publicOutput: FizkRollupState }> {
+	// 			// Verify the intent proof
+	// 		privateInput.proof.verify();
+
+	// 		// -- 	Verify intent preconditions
+	// 		const preconditions = privateInput.proof.publicInput;
+	// 		// historical proof check
+	// 		privateInput.historicalBlockStateMap.getRoot().assertEquals(publicInput.blockInfoState.historicalStateMerkleRoot);
+	// 		// the map must contain the block with the snapshot state
+	// 		privateInput.historicalBlockStateMap.get(preconditions.noteSnapshotBlockNumber.value).assertEquals(preconditions.noteSnapshotBlockHash);
+	// 		// the block number must not be greater than the current block number
+	// 		preconditions.noteSnapshotBlockNumber.assertLessThanOrEqual(publicInput.blockInfoState.blockNumber);
+			
+	// 		// verify iomap update
+	// 		const verifiedIoMapUpdate = privateInput.ioMap.verifyBridge(privateInput.proof.publicOutput.zkusdIoMapUpdate);
+	// 		// zkusd
+	// 		const zkusdMap = privateInput.zkusdMap;
+	// 		// verify and update the zkusd map
+	// 		const newZkusdMapRoot = zkusdMap.verifyAndUpdate(publicInput.zkUsdState, privateInput.proof.publicOutput.zkusdMapUpdate);
+	// 		publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
+	// 		// update io map
+	// 		const newIoMapRoot = privateInput.ioMap.verifiedUpdate(verifiedIoMapUpdate);
+	// 		publicInput.vaultState.ioMapRoot = newIoMapRoot;
+			
+	// 		return {
+	// 			publicOutput: publicInput,
+	// 		};
+	// 		}
+	// },
 
 	burn: {
 		privateInputs: [BurnPrivateInput],

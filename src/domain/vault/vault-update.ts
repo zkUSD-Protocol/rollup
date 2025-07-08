@@ -55,6 +55,7 @@ export class DepositIntentUpdate extends Struct({
   collateralType: CollateralType,
 }) {}
 
+
 export class CreateVaultIntentUpdate extends Struct({
   vaultAddress: VaultAddress,
   collateralType: CollateralType,
