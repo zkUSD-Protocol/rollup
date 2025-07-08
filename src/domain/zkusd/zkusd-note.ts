@@ -133,9 +133,17 @@ export class Note extends Struct({
     return Note.fromFields(fields);
   }
 
-  nullifier(nk: Field): Field {
-    return Poseidon.hash([nk, this.secret]);
+  nullifier(): Nullifier {
+    return Provable.if(this.isDummy.not(), Nullifier.create(this), Nullifier.dummy());
   }
+
+  commitment(): OutputNoteCommitment {
+    return Provable.if(this.isDummy.not(), OutputNoteCommitment.create(this), OutputNoteCommitment.dummy());
+  }
+
+  assertAuthorizedSpender(spender: PublicKey): void {
+    this.address.spendingPublicKey.assertEquals(Provable.if(this.isDummy.not(), spender, PublicKey.empty())); 
+  }  
 }
 
 export class InputNotes extends Struct({
@@ -174,6 +182,7 @@ export class OutputNotes extends Struct({
   }
 }
 
+const OutputNoteCommitmentSalt = Field.from(13007545258224062508603495747750390692157031942398900146434546090204384591561n); 
 export class OutputNoteCommitment extends Struct({
   commitment: Field,
   isDummy: Bool,
@@ -185,9 +194,9 @@ export class OutputNoteCommitment extends Struct({
     });
   }
 
-  static create(commitment: Field): OutputNoteCommitment {
+  static create(note: Note): OutputNoteCommitment {
     return new OutputNoteCommitment({
-      commitment,
+      commitment: Poseidon.hash([OutputNoteCommitmentSalt, note.hash()]),
       isDummy: Bool(false),
     });
   }
@@ -212,6 +221,7 @@ export class OutputNoteCommitments extends Struct({
   }
 }
 
+const NullifierSalt = Field.from(117961218807913489907221458166889036550904651509586194323562978977218286381272n); 
 export class Nullifier extends Struct({
   nullifier: Field,
   isDummy: Bool,
@@ -228,9 +238,9 @@ export class Nullifier extends Struct({
     return Field(0);
   }
 
-  static create(nullifier: Field): Nullifier {
+  static create(note: Note): Nullifier {
     return new Nullifier({
-      nullifier,
+      nullifier: Poseidon.hash([NullifierSalt, note.hash()]),
       isDummy: Bool(false),
     });
   }
@@ -242,6 +252,7 @@ export class Nullifier extends Struct({
     });
   }
 }
+
 export class Nullifiers extends Struct({
   nullifiers: Provable.Array(Nullifier, MAX_INPUT_NOTE_COUNT),
 }) {

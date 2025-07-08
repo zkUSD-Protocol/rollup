@@ -1,10 +1,12 @@
 import { Field, Struct, UInt32 } from "o1js";
-import { IoMap   } from "../bridging/io-map.js";
+import { CollateralIoMap   } from "../bridging/collateral-io-map.js";
 import { ZkUsdMap } from "./zkusd-map.js";
 import { MerkleRoot } from "../../core/map/merkle-root.js";
+import { BridgeIoMap } from "../bridging/bridge-io-map.js";
 
 export class ZkUsdState extends Struct({
-    ioMapRoot: MerkleRoot<IoMap>,
+    ioMapRoot: MerkleRoot<CollateralIoMap>,
+    bridgeIoMapRoot: MerkleRoot<BridgeIoMap>,
     zkUsdMapRoot: MerkleRoot<ZkUsdMap>,
     trasactionFee: UInt32,
     govRewardFeePercentage: UInt32,

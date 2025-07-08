@@ -3,6 +3,7 @@ import { ProposalMap } from "./proposal-map.js";
 import { MerkleRoot } from "../../core/map/merkle-root.js";
 import { StakeMap } from "./stake-map.js";
 import { CouncilMemberMap } from "./council-member-map.js";
+import { BridgeMap } from "../bridging/bridge-map.js";
 
 
 export class GovernanceState extends Struct({
@@ -24,6 +25,8 @@ export class GovernanceState extends Struct({
     lastProposalIndex: Field,
     stakeMapRoot: MerkleRoot<StakeMap>,
     
+    bridgeMapRoot: MerkleRoot<BridgeMap>,
+    
 }) {
     toFields(): Field[] {
         return [
@@ -40,6 +43,7 @@ export class GovernanceState extends Struct({
             this.proposalMapRoot.root,
             this.lastProposalIndex,
             this.stakeMapRoot.root,
+            this.bridgeMapRoot.root,
         ];
     }
 
@@ -58,6 +62,7 @@ export class GovernanceState extends Struct({
             proposalMapRoot: this.proposalMapRoot,
             lastProposalIndex: this.lastProposalIndex,
             stakeMapRoot: this.stakeMapRoot,
+            bridgeMapRoot: this.bridgeMapRoot,
         });
     }
 }
@@ -75,6 +80,7 @@ export class GovernanceStateUpdate extends Struct({
 
     globalGovRewardIndex: UInt64,
     
+    bridgeMapRoot: MerkleRoot<BridgeMap>,
 }) {
     toFields(): Field[] {
         return [
@@ -87,6 +93,7 @@ export class GovernanceStateUpdate extends Struct({
             this.proposalSnapshotValidityMillis.value,
             ...this.minaSettlementKey.toFields(),
             this.globalGovRewardIndex.value,
+            this.bridgeMapRoot.root,
         ];
     }
 }

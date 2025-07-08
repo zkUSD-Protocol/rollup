@@ -2,11 +2,11 @@ import { Field, Struct } from "o1js";
 import { VaultMap } from "./vault-map.js";
 import { VaultTypeData } from "./vault.js";
 import { MerkleRoot } from "../../core/map/merkle-root.js";
-import { IoMap } from "../bridging/io-map.js";
+import { CollateralIoMap } from "../bridging/collateral-io-map.js";
 
 export class ZkUsdVaults extends Struct({
   vaultMapRoot: MerkleRoot<VaultMap>,
-  ioMapRoot: MerkleRoot<IoMap>,
+  ioMapRoot: MerkleRoot<CollateralIoMap>,
   minaVaultTypeState: VaultTypeData,
   suiVaultTypeState: VaultTypeData,
 }) {

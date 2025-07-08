@@ -8,7 +8,7 @@ import {
   ZkProgram,
 } from 'o1js';
 import { ZkUsdMap } from '../domain/zkusd/zkusd-map.js';
-import { Note, Nullifiers, OutputNoteCommitment, OutputNoteCommitments } from '../domain/zkusd/zkusd-note.js';
+import { Note, Nullifiers, OutputNoteCommitments } from '../domain/zkusd/zkusd-note.js';
 import { VaultAddress } from '../domain/vault/vault-address.js';
 import { ZkusdMapUpdate } from '../state-updates/zkusd-map-update.js';
 import { CollateralType } from '../domain/vault/vault-collateral-type.js';
@@ -64,8 +64,6 @@ export const MintIntent = ZkProgram({
 
         const vaultAddress = VaultAddress.fromPublicKey(ownerPublicKey, collateralType);
 
-        const outputNoteCommitment = OutputNoteCommitment.create(note.hash());
-
         const vaultUpdate = new MintIntentUpdate({
           vaultAddress: vaultAddress,
           debtDelta: note.amount,
@@ -77,7 +75,7 @@ export const MintIntent = ZkProgram({
             vaultUpdate,
             zkusdMapUpdate: new ZkusdMapUpdate({
               nullifiers: Nullifiers.empty(),
-              outputNoteCommitments: new OutputNoteCommitments({commitments: [outputNoteCommitment]})
+              outputNoteCommitments: new OutputNoteCommitments({commitments: [note.commitment()]})
             }),
           },
         };

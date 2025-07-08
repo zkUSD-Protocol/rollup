@@ -11,14 +11,16 @@ import { VaultMap } from "./domain/vault/vault-map.js";
 import { VaultParameters } from "./domain/vault/vault.js";
 import { CollateralType } from "./domain/vault/vault-collateral-type.js";
 import { DepositIntentProof } from "./intents/deposit.js";
-import { IoMap } from "./domain/bridging/io-map.js";
-import { IOAccumulators } from "./domain/bridging/io-accumulators.js";
+import { CollateralIoMap } from "./domain/bridging/collateral-io-map.js";
+import { CollateralIOAccumulators } from "./domain/bridging/collateral-io-accumulators.js";
 import { RedeemIntentProof } from "./intents/redeem.js";
 import { TransferIntentProof } from "./intents/transfer.js";
-import { MAX_INPUT_NOTE_COUNT, MAX_OUTPUT_NOTE_COUNT, Note, Nullifier } from "./domain/zkusd/zkusd-note.js";
 import { ZkUsdMap } from "./domain/zkusd/zkusd-map.js";
 import { BurnIntentProof } from "./intents/burn.js";
 import { MintIntentProof } from "./intents/mint.js";
+import { BridgeIntentProof } from "./intents/bridge.js";
+import { BridgeIoMap } from "./domain/bridging/bridge-io-map.js";
+import { BridgeMap } from "./domain/bridging/bridge-map.js";
 
 // make into a heler function
 function getActualVaultParams(publicInput: FizkRollupState, collateralType: CollateralType): VaultParameters {
@@ -163,7 +165,7 @@ export class GovVetoProposalPrivateInput extends Struct({
 export class CreateVaultPrivateInput extends Struct({
 	proof: CreateVaultIntentProof,
 	vaultMap: VaultMap,
-	iomap: IoMap,
+	iomap: CollateralIoMap,
 }) {}
 
 
@@ -178,13 +180,13 @@ export class CreateVaultPrivateInput extends Struct({
 export class DepositPrivateInput extends Struct({
 	proof: DepositIntentProof,
 	vaultMap: VaultMap,
-	iomap: IoMap,
+	iomap: CollateralIoMap,
 }) {}
 
 export class RedeemPrivateInput extends Struct({
 	proof: RedeemIntentProof,
 	vaultMap: VaultMap,
-	iomap: IoMap,
+	iomap: CollateralIoMap,
 }) {}
 
 export class TransferPrivateInput extends Struct({
@@ -204,12 +206,13 @@ export class MintPrivateInput extends Struct({
 	zkusdMap: ZkUsdMap,
 	vaultMap: VaultMap,
 }) {}
-// export class BridgePrivateInput extends Struct({
-// 	proof: BridgeIntentProof,
-// 	zkusdMap: ZkUsdMap,
-// 	ioMap: IoMap,
-// 	historicalBlockStateMap: HistoricalBlockStateMap,
-// }) {}
+export class BridgePrivateInput extends Struct({
+	proof: BridgeIntentProof,
+	bridgeMap: BridgeMap,
+	zkusdMap: ZkUsdMap,
+	bridgeIoMap: BridgeIoMap,
+	historicalBlockStateMap: HistoricalBlockStateMap,
+}) {}
 
 // general todo:
 // this methods are not atomic so if the execution breaks at some point then 
@@ -224,7 +227,7 @@ export const ZkusdRollup = ZkProgram({
       privateInputs: [CreateVaultPrivateInput],
       async method(
         publicInput: FizkRollupState,
-        privateInput: CreateVaultPrivateInput & { proof: CreateVaultIntentProof, vaultMap: VaultMap, iomap: IoMap },
+        privateInput: CreateVaultPrivateInput & { proof: CreateVaultIntentProof, vaultMap: VaultMap, iomap: CollateralIoMap },
       ): Promise<{ publicOutput: FizkRollupState }> {
         // Verify the intent proof
         privateInput.proof.verify();
@@ -237,7 +240,7 @@ export const ZkusdRollup = ZkProgram({
 		ioMap.getRoot().assertEquals(publicInput.vaultState.ioMapRoot);
 
 		// create io accumulators for the vault
-		ioMap.insert(privateInput.proof.publicOutput.update.vaultAddress.key, IOAccumulators.empty().pack());
+		ioMap.insert(privateInput.proof.publicOutput.update.vaultAddress.key, CollateralIOAccumulators.empty().pack());
 		publicInput.vaultState.ioMapRoot = ioMap.getRoot();
 
         // update the vault map
@@ -254,7 +257,7 @@ export const ZkusdRollup = ZkProgram({
 		privateInputs: [DepositPrivateInput],
 		async method(
 			publicInput: FizkRollupState,
-			privateInput: DepositPrivateInput & { vaultMap: VaultMap, iomap: IoMap }): Promise<{ publicOutput: FizkRollupState }> {
+			privateInput: DepositPrivateInput & { vaultMap: VaultMap, iomap: CollateralIoMap }): Promise<{ publicOutput: FizkRollupState }> {
 			
 			// Verify the intent proof
 			privateInput.proof.verify();
@@ -292,7 +295,7 @@ export const ZkusdRollup = ZkProgram({
 		privateInputs: [RedeemPrivateInput],
 		async method(
 			publicInput: FizkRollupState,
-			privateInput: RedeemPrivateInput & { vaultMap: VaultMap, iomap: IoMap }): Promise<{ publicOutput: FizkRollupState }> {
+			privateInput: RedeemPrivateInput & { vaultMap: VaultMap, iomap: CollateralIoMap }): Promise<{ publicOutput: FizkRollupState }> {
 
 				// Verify the intent proof
 				privateInput.proof.verify();
@@ -323,39 +326,41 @@ export const ZkusdRollup = ZkProgram({
 			},
 	},	
 
-	// bridge: {
-	// 	privateInputs: [BridgePrivateInput],
-	// 	async method(
-	// 		publicInput: FizkRollupState,
-	// 		privateInput: BridgePrivateInput & { zkusdMap: ZkUsdMap, ioMap: IoMap, historicalBlockStateMap: HistoricalBlockStateMap }): Promise<{ publicOutput: FizkRollupState }> {
-	// 			// Verify the intent proof
-	// 		privateInput.proof.verify();
+	bridge: {
+		privateInputs: [BridgePrivateInput],
+		async method(
+			publicInput: FizkRollupState,
+			privateInput: BridgePrivateInput & { zkusdMap: ZkUsdMap, bridgeIoMap: BridgeIoMap, bridgeMap: BridgeMap, historicalBlockStateMap: HistoricalBlockStateMap }): Promise<{ publicOutput: FizkRollupState }> {
+				// Verify the intent proof
+			privateInput.proof.verify();
 
-	// 		// -- 	Verify intent preconditions
-	// 		const preconditions = privateInput.proof.publicInput;
-	// 		// historical proof check
-	// 		privateInput.historicalBlockStateMap.getRoot().assertEquals(publicInput.blockInfoState.historicalStateMerkleRoot);
-	// 		// the map must contain the block with the snapshot state
-	// 		privateInput.historicalBlockStateMap.get(preconditions.noteSnapshotBlockNumber.value).assertEquals(preconditions.noteSnapshotBlockHash);
-	// 		// the block number must not be greater than the current block number
-	// 		preconditions.noteSnapshotBlockNumber.assertLessThanOrEqual(publicInput.blockInfoState.blockNumber);
+			// -- 	Verify intent preconditions
+			const preconditions = privateInput.proof.publicInput;
+			// historical proof check
+			privateInput.historicalBlockStateMap.getRoot().assertEquals(publicInput.blockInfoState.historicalStateMerkleRoot);
+			// the map must contain the block with the snapshot state
+			privateInput.historicalBlockStateMap.get(preconditions.noteSnapshotBlockNumber.value).assertEquals(preconditions.noteSnapshotBlockHash);
+			// the block number must not be greater than the current block number
+			preconditions.noteSnapshotBlockNumber.assertLessThanOrEqual(publicInput.blockInfoState.blockNumber);
+			// bridge map root must match
+			privateInput.bridgeMap.getRoot().assertEquals(publicInput.zkUsdState.bridgeIoMapRoot)
 			
-	// 		// verify iomap update
-	// 		const verifiedIoMapUpdate = privateInput.ioMap.verifyBridge(privateInput.proof.publicOutput.zkusdIoMapUpdate);
-	// 		// zkusd
-	// 		const zkusdMap = privateInput.zkusdMap;
-	// 		// verify and update the zkusd map
-	// 		const newZkusdMapRoot = zkusdMap.verifyAndUpdate(publicInput.zkUsdState, privateInput.proof.publicOutput.zkusdMapUpdate);
-	// 		publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
-	// 		// update io map
-	// 		const newIoMapRoot = privateInput.ioMap.verifiedUpdate(verifiedIoMapUpdate);
-	// 		publicInput.vaultState.ioMapRoot = newIoMapRoot;
+			// verify bridge io ma update
+			const verifiedIoMapUpdate = privateInput.bridgeIoMap.verifyBridgeSendIntent(privateInput.proof.publicOutput.bridgeIntentUpdate);
+			// zkusd
+			const zkusdMap = privateInput.zkusdMap;
+			// verify and update the zkusd map
+			const newZkusdMapRoot = zkusdMap.verifyAndUpdate(publicInput.zkUsdState, privateInput.proof.publicOutput.zkusdMapUpdate);
+			publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
+			// update io map
+			const newIoMapRoot = privateInput.bridgeIoMap.verifiedSet(verifiedIoMapUpdate);
+			publicInput.zkUsdState.bridgeIoMapRoot = newIoMapRoot;
 			
-	// 		return {
-	// 			publicOutput: publicInput,
-	// 		};
-	// 		}
-	// },
+			return {
+				publicOutput: publicInput,
+			};
+			}
+	},
 
 	burn: {
 		privateInputs: [BurnPrivateInput],

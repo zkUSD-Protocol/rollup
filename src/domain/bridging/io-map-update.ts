@@ -1,5 +1,6 @@
 import { Struct, UInt64 } from "o1js";
-import { VaultAddress } from "../vault/vault-address";
+import { VaultAddress } from "../vault/vault-address.js";
+import { BridgedAddress } from "./bridged-address.js";
 
 export class IoMapUpdate extends Struct({
     deposits: UInt64,
@@ -24,12 +25,13 @@ export class IoMapUpdate extends Struct({
 } 
     
 
-export class BridgeIntentUpdate extends Struct({
-  vaultAddress: VaultAddress,
-  amount: UInt64,
+export class BridgeSendIntentUpdate extends Struct({
+  bridgedAddress: BridgedAddress,
+  rollupJustBurned: UInt64,
 }) {}
 
-export class BridgeBackIntentUpdate extends Struct({
-  vaultAddress: VaultAddress,
-  amount: UInt64,
+export class BridgeReceiveIntentUpdate extends Struct({
+  bridgedAddress: BridgedAddress,
+  bridgeTotalBurned: UInt64,
+  mintAmount: UInt64,
 }) {}

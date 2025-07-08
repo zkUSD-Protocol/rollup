@@ -5,46 +5,44 @@ import {
 import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
 import { MerkleRoot } from '../../core/map/merkle-root.js';
-import { IOAccumulators } from './io-accumulators.js';
+import { CollateralIOAccumulators } from './collateral-io-accumulators.js';
 import { VaultAddress } from '../vault/vault-address.js';
 import { DepositIntentUpdate, RedeemIntentUpdate } from '../vault/vault-update.js';
-import { VerifiedMapUpdate } from '../vault/vault-map.js';
 import { Field, Struct, UInt64 } from 'o1js';
-import { BridgeBackIntentUpdate, BridgeIntentUpdate } from './io-map-update.js';
 
 const IO_MAP_HEIGHT = 52; // 4,503,599,627,370,496 - 4.5 quadrillion
 
 // Create base serializable map
-const IoMapBase = createSerializableIndexedMap(IO_MAP_HEIGHT);
+const CollateralIoMapBase = createSerializableIndexedMap(IO_MAP_HEIGHT);
 
 export class VerifiedAccumulatorsUpdate extends Struct({
   vaultAddress: VaultAddress,
-  newIoAccumulatorsState: IOAccumulators,
+  newIoAccumulatorsState: CollateralIOAccumulators,
 }) {}
 
 
-export class IoMap extends IoMapBase {
+export class CollateralIoMap extends CollateralIoMapBase {
   /**
    * Create a pruned version of this map
    */
-  createPruned(request: PruningRequest): PrunedIoMap {
+  createPruned(request: PruningRequest): PrunedCollateralIoMap {
     const prunedData = MapPruner.createPrunedData(this, request);
-    return new PrunedIoMap(prunedData);
+    return new PrunedCollateralIoMap(prunedData);
   }
 
   /**
    * Get the root of the map
    */
-  getRoot(): MerkleRoot<IoMap> {
+  getRoot(): MerkleRoot<CollateralIoMap> {
     return new MerkleRoot({ root: this.root });
   }
 
-  getAccumulators(address: VaultAddress): IOAccumulators {
-    return IOAccumulators.unpack(this.get(address.key));
+  getAccumulators(address: VaultAddress): CollateralIOAccumulators {
+    return CollateralIOAccumulators.unpack(this.get(address.key));
   }
 
-  createAccumulatorsForAddress(address: VaultAddress): MerkleRoot<IoMap> {
-    const io = new IOAccumulators({
+  createAccumulatorsForAddress(address: VaultAddress): MerkleRoot<CollateralIoMap> {
+    const io = new CollateralIOAccumulators({
       totalDeposits: UInt64.from(0),
       totalWithdrawals: UInt64.from(0),
     });
@@ -52,7 +50,7 @@ export class IoMap extends IoMapBase {
     return this.getRoot();
   }
 
-  verifiedUpdate(update: VerifiedAccumulatorsUpdate): MerkleRoot<IoMap> {
+  verifiedUpdate(update: VerifiedAccumulatorsUpdate): MerkleRoot<CollateralIoMap> {
     this.update(update.vaultAddress.key, update.newIoAccumulatorsState.pack());
     return this.getRoot();
   }
@@ -62,33 +60,9 @@ export class IoMap extends IoMapBase {
 
     return new VerifiedAccumulatorsUpdate({
       vaultAddress: update.vaultAddress,
-      newIoAccumulatorsState: new IOAccumulators({
+      newIoAccumulatorsState: new CollateralIOAccumulators({
         totalDeposits: oldAccumulators.totalDeposits,
         totalWithdrawals: oldAccumulators.totalWithdrawals.add(update.collateralDelta),
-      }),
-    });
-  }
-
-  verifyBridge(update: BridgeIntentUpdate): VerifiedAccumulatorsUpdate {
-    const oldAccumulators = this.getAccumulators(update.vaultAddress);
-
-    return new VerifiedAccumulatorsUpdate({
-      vaultAddress: update.vaultAddress,
-      newIoAccumulatorsState: new IOAccumulators({
-        totalDeposits: oldAccumulators.totalDeposits.add(update.amount),
-        totalWithdrawals: oldAccumulators.totalWithdrawals,
-      }),
-    });
-  }
-
-  verifyBridgeBack(update: BridgeBackIntentUpdate): VerifiedAccumulatorsUpdate {
-    const oldAccumulators = this.getAccumulators(update.vaultAddress);
-
-    return new VerifiedAccumulatorsUpdate({
-      vaultAddress: update.vaultAddress,
-      newIoAccumulatorsState: new IOAccumulators({
-        totalDeposits: oldAccumulators.totalDeposits.sub(update.amount),
-        totalWithdrawals: oldAccumulators.totalWithdrawals,
       }),
     });
   }
@@ -104,7 +78,7 @@ export class IoMap extends IoMapBase {
 
     return new VerifiedAccumulatorsUpdate({
       vaultAddress: update.vaultAddress,
-      newIoAccumulatorsState: new IOAccumulators({
+      newIoAccumulatorsState: new CollateralIOAccumulators({
         totalDeposits: update.newIoMapTotalDeposits,
         totalWithdrawals: oldAccumulators.totalWithdrawals,
       }),
@@ -121,23 +95,23 @@ export class IoMap extends IoMapBase {
   /**
    * Create a ZkUsdMap from serialized data
    */
-  static fromSerialized(data: SerializableMapData): IoMap {
-    return super.fromSerialized(data) as IoMap;
+  static fromSerialized(data: SerializableMapData): CollateralIoMap {
+    return super.fromSerialized(data) as CollateralIoMap;
   }
 }
 
-export class PrunedIoMap extends PrunedMapBase {
+export class PrunedCollateralIoMap extends PrunedMapBase {
   constructor(data: SerializableMapData) {
-    super(new IoMapBase(), data);
+    super(new CollateralIoMapBase(), data);
   }
 
   /**
    * Create a PrunedZkUsdMap from serialized data
    */
-  static fromSerialized(data: SerializableMapData): PrunedIoMap {
-    if (!IoMapBase.verifyIntegrity(data)) {
-      throw new Error('Invalid serialized data for PrunedIoMap');
+  static fromSerialized(data: SerializableMapData): PrunedCollateralIoMap {
+    if (!CollateralIoMapBase.verifyIntegrity(data)) {
+      throw new Error('Invalid serialized data for PrunedCollateralIoMap');
     }
-    return new PrunedIoMap(data);
+    return new PrunedCollateralIoMap(data);
   }
 }

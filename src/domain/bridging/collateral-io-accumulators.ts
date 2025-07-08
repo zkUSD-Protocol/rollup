@@ -1,7 +1,7 @@
 import { Field, Struct, UInt64 } from "o1js";
 
 //  todo tests
-export class IOAccumulators extends Struct({
+export class CollateralIOAccumulators extends Struct({
     totalDeposits: UInt64,
     totalWithdrawals: UInt64,
 }) {
@@ -16,17 +16,17 @@ export class IOAccumulators extends Struct({
         ]);
     }
 
-    static empty(): IOAccumulators {
-        return new IOAccumulators({
+    static empty(): CollateralIOAccumulators {
+        return new CollateralIOAccumulators({
             totalDeposits: UInt64.zero,
             totalWithdrawals: UInt64.zero,
         });
     }
 
-    static unpack(field: Field): IOAccumulators {
+    static unpack(field: Field): CollateralIOAccumulators {
         const totalDeposits = UInt64.fromBits(field.toBits().slice(0, 64));
         const totalWithdrawals = UInt64.fromBits(field.toBits().slice(64, 128));
-        return new IOAccumulators({
+        return new CollateralIOAccumulators({
             totalDeposits,
             totalWithdrawals,
         });

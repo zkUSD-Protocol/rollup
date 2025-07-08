@@ -4,7 +4,7 @@ import { VaultAddress } from "../vault/vault-address.js";
 import { Proof, ZkProgram } from "o1js";
 import { MerkleRoot } from "../../core/map/merkle-root.js";
 import { ObserverMap } from "../enclave/zskud-enclaves-state.js";
-import { IOAccumulators } from "./io-accumulators.js";
+import { CollateralIOAccumulators } from "./collateral-io-accumulators.js";
 
 export class CollateralIOProofInput extends Struct({
     
@@ -13,7 +13,7 @@ export class CollateralIOProofInput extends Struct({
 export class CollateralIOProofOutput extends Struct({
     collateralType: CollateralType,
     vaultAddress: VaultAddress,
-    ioAccumulators: IOAccumulators,
+    ioAccumulators: CollateralIOAccumulators,
     oracleKeysMerkleRoot: MerkleRoot<ObserverMap>,
 }) {}
 
@@ -21,7 +21,7 @@ export class CollateralIOProofOutput extends Struct({
 export class DummyDepositProofPrivateInput extends Struct({
     collateralType: CollateralType,
     vaultAddress: VaultAddress,
-    ioAccumulators: IOAccumulators,
+    ioAccumulators: CollateralIOAccumulators,
     oracleKeysMerkleRoot: MerkleRoot<ObserverMap>,
 }) {}
 

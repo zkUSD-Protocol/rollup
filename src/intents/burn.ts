@@ -1,13 +1,13 @@
+
 import {
   Field,
-  Provable,
   PublicKey,
   Signature,
   Struct,
   UInt64,
   ZkProgram,
 } from 'o1js';
-import { InputNotes, MAX_INPUT_NOTE_COUNT, Note, Nullifier, Nullifiers, OutputNoteCommitment, OutputNoteCommitments } from '../domain/zkusd/zkusd-note.js';
+import { InputNotes, Note, OutputNotes } from '../domain/zkusd/zkusd-note.js';
 import { DebtRepaymentIntentUpdate } from '../domain/vault/vault-update.js';
 import { VaultAddress } from '../domain/vault/vault-address.js';
 import { VaultParameters } from '../domain/vault/vault.js';
@@ -16,144 +16,132 @@ import { CollateralType } from '../domain/vault/vault-collateral-type.js';
 import { ZkUsdMap } from '../domain/zkusd/zkusd-map.js';
 import { FizkRollupState } from '../domain/rollup-state.js';
 import { verifyNoteSnapshotState } from './helpers.js';
+import { processNotesAndCreateMapUpdate } from './common/note-io-helper.js';
 
-// it is assumed that the intent submitter / vault owner, wants to act
-// against a particular vault parameters, so we set them as precondtions 
+/* ------------------------------------------------------------------ */
+/*  Public-input / public-output structs                              */
+/* ------------------------------------------------------------------ */
+
 export class BurnIntentPreconditions extends Struct({
-   vaultParameters: VaultParameters,
-   noteSnapshotBlockNumber: UInt64,
-   noteSnapshotBlockHash: Field,
+  vaultParameters:    VaultParameters,
+  noteSnapshotBlockNumber: UInt64,
+  noteSnapshotBlockHash:   Field,
 }) {}
 
-
-// intended updates to the protocol state
-// it contains a vault update that decreases the debt of the vault
-// and a zkusd map update that marks notes as spent
 export class BurnIntentOutput extends Struct({
-  vaultUpdate: DebtRepaymentIntentUpdate,
+  vaultUpdate:    DebtRepaymentIntentUpdate,
   zkusdMapUpdate: ZkusdMapUpdate,
 }) {}
 
+/* ------------------------------------------------------------------ */
+/*  Private input                                                     */
+/* ------------------------------------------------------------------ */
+
 export class BurnIntentPrivateInput extends Struct({
-  zkusdMap: ZkUsdMap,
-  noteSnapshotState: FizkRollupState,
-  inputNotes: InputNotes,
-  outputNote: Note,
-  spendingSignature: Signature,
-  spendingPublicKey: PublicKey,
-  nullifierKey: Field,
-  ownerSignature: Signature,
-  ownerPublicKey: PublicKey,
-  amount: UInt64,
-  collateralType: CollateralType,
+  zkusdMap:            ZkUsdMap,
+  noteSnapshotState:   FizkRollupState,
+  inputNotes:          InputNotes,
+  outputNote:          Note,
+  spendingSignature:   Signature,
+  spendingPublicKey:   PublicKey,
+  nullifierKey:        Field,
+  ownerSignature:      Signature,
+  ownerPublicKey:      PublicKey,
+  amount:              UInt64,
+  collateralType:      CollateralType,
 }) {}
 
-export const BurnIntentKey = Field.from('421902410912840918213124091811240') // TODO replace with something more structured
+/* ------------------------------------------------------------------ */
+/*  Constants                                                         */
+/* ------------------------------------------------------------------ */
+
+export const BurnIntentKey = Field.from(
+  '421902410912840918213124091811240', // TODO: replace with something structured
+);
+
+/* ------------------------------------------------------------------ */
+/*  ZkProgram                                                         */
+/* ------------------------------------------------------------------ */
 
 export const BurnIntent = ZkProgram({
-  name: 'BurnIntent',
+  name:        'BurnIntent',
   publicInput: BurnIntentPreconditions,
   publicOutput: BurnIntentOutput,
+
   methods: {
     burn: {
       privateInputs: [BurnIntentPrivateInput],
-      async method(
-        publicInput: BurnIntentPreconditions,
-        privateInput: BurnIntentPrivateInput & { zkusdMap: ZkUsdMap }
-      ): Promise<{ publicOutput: BurnIntentOutput }> {
-        const nullifiers = Nullifiers.empty();
 
+      async method(
+        publicInput:  BurnIntentPreconditions,
+        privateInput: BurnIntentPrivateInput & { zkusdMap: ZkUsdMap },
+      ): Promise<{ publicOutput: BurnIntentOutput }> {
+
+        /* ---------------- unpack ---------------- */
         const {
           inputNotes,
           outputNote,
           spendingSignature,
           spendingPublicKey,
-          nullifierKey,
           collateralType,
           ownerSignature,
           ownerPublicKey,
           amount,
           zkusdMap,
-          noteSnapshotState
+          noteSnapshotState,
         } = privateInput;
 
-        // verify the snapshot state
+        /* ---------- 1. verify the snapshot root ---------- */
         verifyNoteSnapshotState(
           noteSnapshotState,
           zkusdMap,
-          publicInput.noteSnapshotBlockHash
+          publicInput.noteSnapshotBlockHash,
         );
 
-        const vaultAddress = VaultAddress.fromPublicKey(ownerPublicKey, collateralType);
+        /* ---------- 2. verify vault-owner signature ------- */
+        const vaultAddress = VaultAddress.fromPublicKey(
+          ownerPublicKey,
+          collateralType,
+        );
 
-        //Verify the owner signature
-        const message = [BurnIntentKey, vaultAddress.key, amount.value];
-        ownerSignature.verify(ownerPublicKey, message);
-        spendingSignature.verify(spendingPublicKey, inputNotes.toFields());
+        const ownerMsg = [BurnIntentKey, vaultAddress.key, amount.value];
+        ownerSignature.verify(ownerPublicKey, ownerMsg);
 
-        let valueIn = UInt64.zero;
+        /* ---------- 3. common note/nullifier processing --- */
+        const outputNotes = OutputNotes.fromArray([outputNote]);
+        const { valueIn, valueOut, zkusdMapUpdate } = processNotesAndCreateMapUpdate({
+          zkusdMap,
+          inputNotes,
+          outputNotes,
+          spendingSignature,
+          spendingPublicKey,
+        });
 
-        for (let i = 0; i < MAX_INPUT_NOTE_COUNT; i++) {
-          const inN = inputNotes.notes[i];
-          const inNHash = inN.hash();
-          const inNNullifier = inN.nullifier(nullifierKey);
+        /* ---------- 4. value-consistency assertion -------- */
+        amount.add(outputNote.amount).assertEquals(valueIn);
+        valueOut.assertEquals(outputNote.amount)
 
-          //We only want to make sure its part of the zkusd map if its not a dummy note
-          const inNToCheck = Provable.if(inN.isDummy.not(), inNHash, Field(0));
-
-          zkusdMap.assertIncluded(inNToCheck);
-
-          let spenderToCheck = Provable.if(
-            inN.isDummy.not(),
-            spendingPublicKey,
-            PublicKey.empty()
-          );
-
-          inN.address.spendingPublicKey.assertEquals(spenderToCheck);
-
-          //Make sure the nullifier is not spent
-          zkusdMap.assertNotIncluded(inNNullifier);
-
-          const nullifier = Provable.if(
-            inN.isDummy.not(),
-            Nullifier.create(inNNullifier),
-            Nullifier.dummy()
-          );
-
-          nullifiers.nullifiers[i] = nullifier;
-
-          valueIn = valueIn.add(inN.amount);
-        }
-
-        const outN = outputNote;
-        const outputNoteCommitment = OutputNoteCommitment.create(outN.hash());
-        zkusdMap.assertNotIncluded(outputNoteCommitment.commitment);
-
-        //Ensure the input amount is the same as the output amount + the amount to burn
-        amount.add(outN.amount).assertEquals(valueIn);
-
-        //Create the vault update
+        /* ---------- 5. vault debt delta ------------------- */
         const vaultUpdate = new DebtRepaymentIntentUpdate({
-          vaultAddress: vaultAddress,
+          vaultAddress,
           debtDelta: amount,
-          collateralType: collateralType,
+          collateralType,
         });
 
-        //Create the zkusd map update
-        const zkusdMapUpdate = new ZkusdMapUpdate({
-          nullifiers,
-          outputNoteCommitments: new OutputNoteCommitments({commitments: [outputNoteCommitment]}),
-        });
-
+        /* ---------- 6. return public output --------------- */
         return {
           publicOutput: {
             vaultUpdate,
-            zkusdMapUpdate: zkusdMapUpdate,
+            zkusdMapUpdate,
           },
         };
       },
     },
   },
 });
+
+/* ------------------------------------------------------------------ */
+/*  Proof type                                                        */
+/* ------------------------------------------------------------------ */
 
 export class BurnIntentProof extends ZkProgram.Proof(BurnIntent) {}
