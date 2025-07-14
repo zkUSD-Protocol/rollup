@@ -4,7 +4,7 @@ import {
 } from '../../core/map/serializable-indexed-map.js';
 import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
-import { MerkleRoot } from '../../core/map/merkle-root.js';
+import { getRoot, MerkleRoot } from '../../core/map/merkle-root.js';
 import { ZkUsdState } from './zkusd-state.js';
 import { ZkUsdUpdate } from './zkusd-update.js';
 import { MAX_INPUT_NOTE_COUNT, MAX_OUTPUT_NOTE_COUNT, Nullifier } from './zkusd-note.js';
@@ -24,13 +24,6 @@ export class ZkUsdMap extends ZkUsdMapBase {
   }
 
   /**
-   * Get the root of the map
-   */
-  getRoot(): MerkleRoot<ZkUsdMap> {
-    return new MerkleRoot({ root: this.root });
-  }
-
-  /**
    * Estimate pruning efficiency
    */
   estimatePruningEfficiency(request: PruningRequest) {
@@ -44,16 +37,16 @@ export class ZkUsdMap extends ZkUsdMapBase {
     return super.fromSerialized(data) as ZkUsdMap;
   }
 
-  verifyAndUpdate(state: ZkUsdState, update: ZkUsdUpdate): MerkleRoot<ZkUsdMap> {
+  static verifyAndUpdate(map: ZkUsdMap, state: ZkUsdState, update: ZkUsdUpdate): MerkleRoot<ZkUsdMap> {
         const { nullifiers, outputNoteCommitments } = update;
         
         // the map root should be the same as the zkusd live root
-        this.getRoot().assertEquals(state.zkUsdMapRoot);
+        getRoot(map).assertEquals(state.zkUsdMapRoot);
 
         for (let i = 0; i < MAX_INPUT_NOTE_COUNT; i++) {
           const nullifier = nullifiers.nullifiers[i];
-          this.assertNotIncluded(nullifier.nullifier);
-          this.setIf(
+          map.assertNotIncluded(nullifier.nullifier);
+          map.setIf(
             nullifier.isDummy.not(),
             nullifier.nullifier,
             Nullifier.included()
@@ -62,15 +55,15 @@ export class ZkUsdMap extends ZkUsdMapBase {
 
         for (let i = 0; i < MAX_OUTPUT_NOTE_COUNT; i++) {
           const outputNoteCommitment = outputNoteCommitments.commitments[i];
-          this.assertNotIncluded(outputNoteCommitment.commitment);
-          this.setIf(
+          map.assertNotIncluded(outputNoteCommitment.commitment);
+          map.setIf(
             outputNoteCommitment.isDummy.not(),
             outputNoteCommitment.commitment,
             Nullifier.included()
           );
         }
       
-      return this.getRoot();
+      return getRoot(map);
   }
 }
 

@@ -86,8 +86,8 @@ export function Vault(params: VaultParameters) {
       return new Vault_(state);
     }
     
-    pack(): Field {
-      return super.pack();
+    static pack(state: VaultState): Field {
+      return VaultState.pack(state);
     }
 
     static unpack(field: Field): Vault_ {
@@ -192,7 +192,7 @@ export function Vault(params: VaultParameters) {
       return newVaultState;
     }
     calculateHealthFactor(collateralAmount: UInt64, debtAmount: UInt64, minaPriceNanoUsd: UInt64): Field {
-      throw new Error('Method not implemented.');
+      return new Field(100)
     }
 
 

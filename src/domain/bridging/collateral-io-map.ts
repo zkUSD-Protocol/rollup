@@ -4,7 +4,7 @@ import {
 } from '../../core/map/serializable-indexed-map.js';
 import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
-import { MerkleRoot } from '../../core/map/merkle-root.js';
+import { getRoot, MerkleRoot } from '../../core/map/merkle-root.js';
 import { CollateralIOAccumulators } from './collateral-io-accumulators.js';
 import { VaultAddress } from '../vault/vault-address.js';
 import { DepositIntentUpdate, RedeemIntentUpdate } from '../vault/vault-update.js';
@@ -30,33 +30,27 @@ export class CollateralIoMap extends CollateralIoMapBase {
     return new PrunedCollateralIoMap(prunedData);
   }
 
-  /**
-   * Get the root of the map
-   */
-  getRoot(): MerkleRoot<CollateralIoMap> {
-    return new MerkleRoot({ root: this.root });
+
+  static getAccumulators(map: CollateralIoMap, address: VaultAddress): CollateralIOAccumulators {
+    return CollateralIOAccumulators.unpack(map.get(address.key));
   }
 
-  getAccumulators(address: VaultAddress): CollateralIOAccumulators {
-    return CollateralIOAccumulators.unpack(this.get(address.key));
-  }
-
-  createAccumulatorsForAddress(address: VaultAddress): MerkleRoot<CollateralIoMap> {
+  static createAccumulatorsForAddress(map: CollateralIoMap, address: VaultAddress): MerkleRoot<CollateralIoMap> {
     const io = new CollateralIOAccumulators({
       totalDeposits: UInt64.from(0),
       totalWithdrawals: UInt64.from(0),
     });
-    this.insert(address.key, io.pack());
-    return this.getRoot();
+    map.insert(address.key, io.pack());
+    return getRoot(map);
   }
 
-  verifiedUpdate(update: VerifiedAccumulatorsUpdate): MerkleRoot<CollateralIoMap> {
-    this.update(update.vaultAddress.key, update.newIoAccumulatorsState.pack());
-    return this.getRoot();
+  static verifiedUpdate(map: CollateralIoMap, update: VerifiedAccumulatorsUpdate): MerkleRoot<CollateralIoMap> {
+    map.update(update.vaultAddress.key, update.newIoAccumulatorsState.pack());
+    return getRoot(map);
   }
 
-  verifyWithdraw(update: RedeemIntentUpdate): VerifiedAccumulatorsUpdate {
-    const oldAccumulators = this.getAccumulators(update.vaultAddress);
+  static verifyWithdraw(map: CollateralIoMap, update: RedeemIntentUpdate): VerifiedAccumulatorsUpdate {
+    const oldAccumulators = CollateralIoMap.getAccumulators(map, update.vaultAddress);
 
     return new VerifiedAccumulatorsUpdate({
       vaultAddress: update.vaultAddress,
@@ -67,8 +61,8 @@ export class CollateralIoMap extends CollateralIoMapBase {
     });
   }
 
-  verifyDeposit(update: DepositIntentUpdate): VerifiedAccumulatorsUpdate{
-    const oldAccumulators = this.getAccumulators(update.vaultAddress);
+  static verifyDeposit(map: CollateralIoMap, update: DepositIntentUpdate): VerifiedAccumulatorsUpdate{
+    const oldAccumulators = CollateralIoMap.getAccumulators(map, update.vaultAddress);
 
 		// deposits must be bigger
 		oldAccumulators.totalDeposits.assertLessThan(update.newIoMapTotalDeposits);

@@ -4,7 +4,6 @@ import {
 } from '../../core/map/serializable-indexed-map.js';
 import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
-import { MerkleRoot } from '../../core/map/merkle-root.js';
 import { Field } from 'o1js';
 
 const OBSERVER_MAP_HEIGHT = 5; // 16
@@ -19,13 +18,6 @@ export class ObserverMap extends ObserverMapBase {
   createPruned(request: PruningRequest): PrunedObserverMap {
     const prunedData = MapPruner.createPrunedData(this, request);
     return new PrunedObserverMap(prunedData);
-  }
-
-  /**
-   * Get the root of the map
-   */
-  getRoot(): MerkleRoot<ObserverMap> {
-    return new MerkleRoot({ root: this.root });
   }
 
   /**

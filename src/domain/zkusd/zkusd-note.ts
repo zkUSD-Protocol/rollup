@@ -84,15 +84,15 @@ export class Note extends Struct({
     });
   }
 
-  hash(): Field {
+  static hash(note: Note): Field {
     return Poseidon.hash([
-      this.amount.value,
-      this.address.viewingPublicKey.toFields()[0],
-      this.address.viewingPublicKey.toFields()[1],
-      this.address.spendingPublicKey.toFields()[0],
-      this.address.spendingPublicKey.toFields()[1],
-      this.secret,
-      this.nonce,
+      note.amount.value,
+      note.address.viewingPublicKey.toFields()[0],
+      note.address.viewingPublicKey.toFields()[1],
+      note.address.spendingPublicKey.toFields()[0],
+      note.address.spendingPublicKey.toFields()[1],
+      note.secret,
+      note.nonce,
     ]);
   }
 
@@ -133,12 +133,12 @@ export class Note extends Struct({
     return Note.fromFields(fields);
   }
 
-  nullifier(): Nullifier {
-    return Provable.if(this.isDummy.not(), Nullifier.create(this), Nullifier.dummy());
+  static nullifier(note: Note): Nullifier {
+    return Provable.if(note.isDummy.not(), Nullifier.create(note), Nullifier.dummy());
   }
 
-  commitment(): OutputNoteCommitment {
-    return Provable.if(this.isDummy.not(), OutputNoteCommitment.create(this), OutputNoteCommitment.dummy());
+  static commitment(note: Note): OutputNoteCommitment {
+    return Provable.if(note.isDummy.not(), OutputNoteCommitment.create(note), OutputNoteCommitment.dummy());
   }
 
   assertAuthorizedSpender(spender: PublicKey): void {
@@ -171,15 +171,14 @@ export class OutputNotes extends Struct({
     return this.notes.map((n) => n.toFields()).flat();
   }
 
-  static fromArray(notes: Note[]): OutputNotes {
-    // check if notes length is less than MAX_OUTPUT_NOTE_COUNT
-    if(notes.length > MAX_OUTPUT_NOTE_COUNT){
-      throw new Error('Too output notes');
-    }
+  static empty(): OutputNotes {
     return new OutputNotes({
-      notes,
+      notes: Array.from({ length: MAX_OUTPUT_NOTE_COUNT }, () =>
+        Note.dummy()
+      ),
     });
   }
+
 }
 
 const OutputNoteCommitmentSalt = Field.from(13007545258224062508603495747750390692157031942398900146434546090204384591561n); 
@@ -196,7 +195,7 @@ export class OutputNoteCommitment extends Struct({
 
   static create(note: Note): OutputNoteCommitment {
     return new OutputNoteCommitment({
-      commitment: Poseidon.hash([OutputNoteCommitmentSalt, note.hash()]),
+      commitment: Poseidon.hash([OutputNoteCommitmentSalt, Note.hash(note)]),
       isDummy: Bool(false),
     });
   }
@@ -240,7 +239,7 @@ export class Nullifier extends Struct({
 
   static create(note: Note): Nullifier {
     return new Nullifier({
-      nullifier: Poseidon.hash([NullifierSalt, note.hash()]),
+      nullifier: Poseidon.hash([NullifierSalt, Note.hash(note)]),
       isDummy: Bool(false),
     });
   }

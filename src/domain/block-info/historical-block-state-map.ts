@@ -22,13 +22,6 @@ export class HistoricalBlockStateMap extends HistoricalBlockStateMapBase {
   }
 
   /**
-   * Get the root of the map
-   */
-  getRoot(): MerkleRoot<HistoricalBlockStateMap> {
-    return new MerkleRoot({ root: this.root });
-  }
-
-  /**
    * Estimate pruning efficiency
    */
   estimatePruningEfficiency(request: PruningRequest) {

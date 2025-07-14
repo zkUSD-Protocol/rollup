@@ -1,4 +1,5 @@
 import { Experimental, Field } from 'o1js';
+import { MerkleRoot } from './merkle-root';
 
 const { IndexedMerkleMap } = Experimental;
 
@@ -20,6 +21,7 @@ export function createSerializableIndexedMap(height: number) {
   const BaseMap = IndexedMerkleMap(height);
 
   return class SerializableIndexedMap extends BaseMap {
+    
     /**
      * Serialize the map to JSON-compatible format
      */

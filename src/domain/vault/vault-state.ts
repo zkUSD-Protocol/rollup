@@ -19,11 +19,11 @@ export class VaultState extends Struct({
     });
   }
 
-  pack(): Field {
+  static pack(state: VaultState): Field {
     const bits = [
-      ...this.collateralType.value.toBits(8),
-      ...this.collateralAmount.value.toBits(64),
-      ...this.normalizedDebtAmount.value.toBits(64),
+      ...state.collateralType.value.toBits(8),
+      ...state.collateralAmount.value.toBits(64),
+      ...state.normalizedDebtAmount.value.toBits(64),
     ];
     return Field.fromBits(bits);
   }

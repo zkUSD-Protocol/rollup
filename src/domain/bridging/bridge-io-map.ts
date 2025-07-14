@@ -4,7 +4,7 @@ import {
 } from '../../core/map/serializable-indexed-map.js';
 import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
-import { MerkleRoot } from '../../core/map/merkle-root.js';
+import { getRoot, MerkleRoot } from '../../core/map/merkle-root.js';
 import { Provable, Struct } from 'o1js';
 import { BridgeBackIntentUpdate, BridgeSendIntentUpdate } from './io-map-update.js';
 import { BridgeIoAccumulators } from './bridge-io-accumulators.js';
@@ -31,30 +31,23 @@ export class BridgeIoMap extends BridgeIoMapBase {
     return new PrunedBridgeIoMap(prunedData);
   }
 
-  /**
-   * Get the root of the map
-   */
-  getRoot(): MerkleRoot<BridgeIoMap> {
-    return new MerkleRoot({ root: this.root });
-  }
-
-  getAccumulators(address: BridgedAddress): BridgeIoAccumulators {
+  static getAccumulators(map: BridgeIoMap, address: BridgedAddress): BridgeIoAccumulators {
     // get option
-    const option = this.getOption(address.key);
+    const option = map.getOption(address.key);
     const accumulators = Provable.if(option.isSome, 
                                      BridgeIoAccumulators.unpack(option.value),
                                      BridgeIoAccumulators.empty());
     return accumulators;
   }
 
-  verifiedSet(update: VerifiedBridgeMapUpdate): MerkleRoot<BridgeIoMap> {
-    this.set(update.bridgedAddress.key, update.newIoAccumulatorsState.pack());
-    return this.getRoot();
+  static verifiedSet(map: BridgeIoMap, update: VerifiedBridgeMapUpdate): MerkleRoot<BridgeIoMap> {
+    map.set(update.bridgedAddress.key, update.newIoAccumulatorsState.pack());
+    return getRoot(map);
   }
 
 
-  verifyBridgeSendIntent(update: BridgeSendIntentUpdate): VerifiedBridgeMapUpdate{
-    const oldAccumulators = this.getAccumulators(update.bridgedAddress);
+  static verifyBridgeSendIntent(map: BridgeIoMap, update: BridgeSendIntentUpdate): VerifiedBridgeMapUpdate{
+    const oldAccumulators = BridgeIoMap.getAccumulators(map, update.bridgedAddress);
 
     return new VerifiedBridgeMapUpdate({
       bridgedAddress: update.bridgedAddress,
@@ -65,8 +58,8 @@ export class BridgeIoMap extends BridgeIoMapBase {
     });
   }
 
-  verifyBridgeReceiveIntent(update: BridgeBackIntentUpdate): VerifiedBridgeMapUpdate {
-    const oldAccumulators = this.getAccumulators(update.bridgedAddress);
+  static verifyBridgeReceiveIntent(map: BridgeIoMap, update: BridgeBackIntentUpdate): VerifiedBridgeMapUpdate {
+    const oldAccumulators = BridgeIoMap.getAccumulators(map, update.bridgedAddress);
     
     oldAccumulators.totalMinted.assertLessThan(update.bridgeTotalBurned);
     const delta = update.bridgeTotalBurned.sub(oldAccumulators.totalMinted);

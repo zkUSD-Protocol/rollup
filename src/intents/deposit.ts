@@ -49,18 +49,18 @@ export const DepositIntent = ZkProgram({
       ): Promise<{ publicOutput: DepositIntentOutput }> {
 
         const { collateralIOProof, ownerSignature, ownerPublicKey, amount } = privateInput;
-        const totalDeposits = collateralIOProof.publicOutput.totalDeposits;
+        const totalDeposits = collateralIOProof.publicOutput.ioAccumulators.totalDeposits;
         
         // verify the io proof
         collateralIOProof.verify();
         // also against public input
-        collateralIOProof.publicOutput.observerKeysMerkleRoot.assertEquals(publicInput.observerKeysMerkleRoot);
+        collateralIOProof.publicOutput.oracleKeysMerkleRoot.assertEquals(publicInput.observerKeysMerkleRoot);
         // and address
         const vaultAddress: VaultAddress = VaultAddress.fromPublicKey(ownerPublicKey, privateInput.collateralType);
-        collateralIOProof.publicOutput.vaultAddress.assertEquals(vaultAddress);
+        collateralIOProof.publicOutput.vaultAddress.key.assertEquals(vaultAddress.key);
 
-        // signature message todo: make it better
-        const message: Field[] = [DepositIntentKey, privateInput.collateralType.value.value, amount, totalDeposits.value, ];
+        // signature message todo: make it bette
+        const message: Field[] = [DepositIntentKey, privateInput.collateralType.value.value, amount.value, totalDeposits.value, ];
 
         // Validate the owner's signature
         const isValidSignature = ownerSignature.verify(ownerPublicKey, message);

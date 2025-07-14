@@ -21,13 +21,6 @@ export class ProposalMap extends ProposalMapBase {
   }
 
   /**
-   * Get the root of the map
-   */
-  getRoot(): MerkleRoot<ProposalMap> {
-    return new MerkleRoot({ root: this.root });
-  }
-
-  /**
    * Estimate pruning efficiency
    */
   estimatePruningEfficiency(request: PruningRequest) {

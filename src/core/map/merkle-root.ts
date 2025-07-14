@@ -38,3 +38,8 @@ export class MerkleRoot<T> extends Struct({
 		this.root.assertEquals(other.root);
 	}
 }
+
+export function getRoot<T extends { root: Field }>(map: T): MerkleRoot<T> {
+	return new MerkleRoot({ root: map.root });
+}
+	

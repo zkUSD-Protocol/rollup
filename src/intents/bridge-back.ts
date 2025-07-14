@@ -67,7 +67,7 @@ export const BridgeBackIntent = ZkProgram({
         ownerSignature.verify(ownerPublicKey, message);
 
         const outputNoteCommitments = OutputNoteCommitments.empty();
-        outputNoteCommitments.commitments[0] = outputNote.commitment();
+        outputNoteCommitments.commitments[0] = Note.commitment(outputNote);
 
         return {
           publicOutput: {

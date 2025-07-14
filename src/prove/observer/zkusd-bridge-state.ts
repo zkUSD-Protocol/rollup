@@ -1,6 +1,6 @@
 import { Bool, Field, Poseidon, PrivateKey, Provable, PublicKey, Signature, Struct, UInt32, ZkProgram } from "o1js";
 import { ObserverMap } from "../../domain/enclave/observer-map.js";
-import { MerkleRoot } from "../../core/map/merkle-root.js";
+import { getRoot, MerkleRoot } from "../../core/map/merkle-root.js";
 import { BridgeIoAccumulators } from "../../domain/bridging/bridge-io-accumulators.js";
 import { BridgedAddress } from "../../domain/bridging/bridged-address.js";
 import { BridgeCode } from "../../domain/bridging/bridge.js";
@@ -23,7 +23,12 @@ export class ObserverBridgeStateAttestationPayload extends Struct({
     }
     
     static empty(): ObserverBridgeStateAttestationPayload {
-        return ObserverBridgeStateAttestationPayload.empty();
+        return new ObserverBridgeStateAttestationPayload({
+            bridgedAddress: BridgedAddress.empty(),
+            bridgeStateAccumulators: BridgeIoAccumulators.empty(),
+            bridgeCode: BridgeCode.empty(),
+            observerPublicKey: PublicKey.empty(),
+        });
     }
 }
 
@@ -93,7 +98,7 @@ export const ZkusdBridgeState = ZkProgram({
                 const { observerMapRoot } = publicInput;
                 
                 // observer map root must match
-                observerMapRoot.assertEquals(observerMap.getRoot());
+                observerMapRoot.assertEquals(getRoot(observerMap));
                 
                 // for each provided attestation
                 let validSignatureCount = UInt32.zero;

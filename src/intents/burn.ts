@@ -108,7 +108,8 @@ export const BurnIntent = ZkProgram({
         ownerSignature.verify(ownerPublicKey, ownerMsg);
 
         /* ---------- 3. common note/nullifier processing --- */
-        const outputNotes = OutputNotes.fromArray([outputNote]);
+        const outputNotes = OutputNotes.empty();
+        outputNotes.notes[0] = outputNote;
         const { valueIn, valueOut, zkusdMapUpdate } = processNotesAndCreateMapUpdate({
           zkusdMap,
           inputNotes,

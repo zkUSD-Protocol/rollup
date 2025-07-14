@@ -1,7 +1,8 @@
 
 import { Field, Poseidon } from "o1js";
-import { FizkRollupState } from "../domain/rollup-state";
-import { ZkUsdMap } from "../domain/zkusd/zkusd-map";
+import { FizkRollupState } from "../domain/rollup-state.js";
+import { ZkUsdMap } from "../domain/zkusd/zkusd-map.js";
+import { getRoot } from "../core/map/merkle-root.js";
 
 /**
  * Verifies the integrity of a historical rollup state
@@ -26,5 +27,5 @@ export function verifyNoteSnapshotState(
   
   // Verify the zkUSD map root matches
   const zkusdMapRoot = noteSnapshotState.zkUsdState.zkUsdMapRoot;
-  zkusdMapRoot.assertEquals(zkusdMap.getRoot());
+  zkusdMapRoot.assertEquals(getRoot(zkusdMap));
 }

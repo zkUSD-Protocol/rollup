@@ -51,5 +51,4 @@ export const ProveCollateralIO = ZkProgram({
 });
 
 
-export class CollateralIOProof extends Proof<CollateralIOProofInput, CollateralIOProofOutput> {
-}        
+export class CollateralIOProof extends ZkProgram.Proof(ProveCollateralIO) { }        

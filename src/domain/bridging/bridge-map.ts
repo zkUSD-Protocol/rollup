@@ -22,13 +22,6 @@ export class BridgeMap extends BridgeMapBase {
   }
 
   /**
-   * Get the root of the map
-   */
-  getRoot(): MerkleRoot<BridgeMap> {
-    return new MerkleRoot({ root: this.root });
-  }
-
-  /**
    * Estimate pruning efficiency
    */
   estimatePruningEfficiency(request: PruningRequest) {

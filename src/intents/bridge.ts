@@ -17,6 +17,7 @@ import { BridgedAddress } from '../domain/bridging/bridged-address.js';
 import { BridgeMap } from '../domain/bridging/bridge-map.js';
 import { MerkleRoot } from '../core/map/merkle-root.js';
 import { processNotesAndCreateMapUpdate } from './common/note-io-helper.js';
+import { getRoot } from '../core/map/merkle-root.js';
 
 export class BridgeIntentPreconditions extends Struct({
    noteSnapshotBlockNumber: UInt64,
@@ -71,7 +72,7 @@ export const BridgeIntent = ZkProgram({
           bridgeMap 
         } = privateInput;
         // verify the bridge map root
-        bridgeMap.getRoot().assertEquals(publicInput.bridgeMapRoot);
+        getRoot(bridgeMap).assertEquals(publicInput.bridgeMapRoot);
         bridgeMap.get(bridgeConfig.code.value.value).assertEquals(bridgeConfig.pack());
         bridgeConfig.depositEnabled.assertEquals(true);
 
@@ -88,7 +89,8 @@ export const BridgeIntent = ZkProgram({
         const message = [BridgeIntentKey, bridgedAddress.key, amount.value];
         ownerSignature.verify(ownerPublicKey, message);
         
-        const outputNotes = OutputNotes.fromArray([outputNote]);
+        const outputNotes = OutputNotes.empty();
+        outputNotes.notes[0] = outputNote;
         const { valueIn, valueOut, zkusdMapUpdate } = processNotesAndCreateMapUpdate({
           zkusdMap,
           inputNotes,

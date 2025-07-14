@@ -59,7 +59,7 @@ export const MintIntent = ZkProgram({
         Poseidon.hash(rollupState.toFields()).assertEquals(publicInput.rollupStateHash);
 
         // verify signature
-        const message = [MintIntentKey, note.hash()]
+        const message = [MintIntentKey, Note.hash(note)]
         ownerSignature.verify(ownerPublicKey, message);
 
         const vaultAddress = VaultAddress.fromPublicKey(ownerPublicKey, collateralType);
@@ -75,7 +75,7 @@ export const MintIntent = ZkProgram({
             vaultUpdate,
             zkusdMapUpdate: new ZkusdMapUpdate({
               nullifiers: Nullifiers.empty(),
-              outputNoteCommitments: new OutputNoteCommitments({commitments: [note.commitment()]})
+              outputNoteCommitments: new OutputNoteCommitments({commitments: [Note.commitment(note)]})
             }),
           },
         };

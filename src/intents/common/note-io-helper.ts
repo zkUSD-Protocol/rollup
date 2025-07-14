@@ -10,6 +10,7 @@ import {
   InputNotes,
   MAX_INPUT_NOTE_COUNT,
   MAX_OUTPUT_NOTE_COUNT,
+  Note,
   Nullifiers,
   OutputNoteCommitments,
   OutputNotes,
@@ -63,8 +64,8 @@ export function processNotesAndCreateMapUpdate({
   for (let i = 0; i < MAX_INPUT_NOTE_COUNT; i++) {
     const note = inputNotes.notes[i];
 
-    const commitmentObj = note.commitment();
-    const nullifierObj  = note.nullifier();
+    const commitmentObj = Note.commitment(note);
+    const nullifierObj  = Note.nullifier(note);
 
     // inclusion check (skip dummy)
     zkusdMap.assertIncluded(
@@ -95,7 +96,7 @@ export function processNotesAndCreateMapUpdate({
 
   for (let i = 0; i < MAX_OUTPUT_NOTE_COUNT; i++) {
     const note = outputNotes.notes[i];
-    const commitmentObj = note.commitment();
+    const commitmentObj = Note.commitment(note);
 
     // commitment must be fresh
     zkusdMap.assertNotIncluded(Provable.if(note.isDummy.not(), commitmentObj.commitment, RANDOM_COMMITMENT_SENTINEL));
