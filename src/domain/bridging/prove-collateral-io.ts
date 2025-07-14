@@ -3,8 +3,8 @@ import { CollateralType } from "../vault/vault-collateral-type.js";
 import { VaultAddress } from "../vault/vault-address.js";
 import { Proof, ZkProgram } from "o1js";
 import { MerkleRoot } from "../../core/map/merkle-root.js";
-import { ObserverMap } from "../enclave/zskud-enclaves-state.js";
 import { CollateralIOAccumulators } from "./collateral-io-accumulators.js";
+import { ObserverMap } from "../enclave/observer-map.js";
 
 export class CollateralIOProofInput extends Struct({
     

@@ -1,4 +1,4 @@
-import { Field, PublicKey, Struct, UInt64, UInt8 } from "o1js";
+import { Field, PublicKey, Struct, UInt32, UInt64, UInt8 } from "o1js";
 import { ProposalMap } from "./proposal-map.js";
 import { MerkleRoot } from "../../core/map/merkle-root.js";
 import { StakeMap } from "./stake-map.js";
@@ -26,6 +26,7 @@ export class GovernanceState extends Struct({
     stakeMapRoot: MerkleRoot<StakeMap>,
     
     bridgeMapRoot: MerkleRoot<BridgeMap>,
+    observersMultiSigTreshold: UInt32,
     
 }) {
     toFields(): Field[] {
@@ -63,6 +64,7 @@ export class GovernanceState extends Struct({
             lastProposalIndex: this.lastProposalIndex,
             stakeMapRoot: this.stakeMapRoot,
             bridgeMapRoot: this.bridgeMapRoot,
+            observersMultiSigTreshold: this.observersMultiSigTreshold,
         });
     }
 }
@@ -81,6 +83,7 @@ export class GovernanceStateUpdate extends Struct({
     globalGovRewardIndex: UInt64,
     
     bridgeMapRoot: MerkleRoot<BridgeMap>,
+    observersMultiSigTreshold: UInt8,
 }) {
     toFields(): Field[] {
         return [

@@ -1,6 +1,6 @@
 import { Struct, UInt64, ZkProgram } from "o1js";
 import { MerkleRoot } from "../core/map/merkle-root.js";
-import { ObserverMap } from "../domain/enclave/zskud-enclaves-state.js";
+import { ObserverMap } from "../domain/enclave/observer-map.js";
 import { HistoricalBlockStateMap } from "../domain/block-info/historical-block-state-map.js";
 import { Timestamp } from "../core/timestamp.js";
 

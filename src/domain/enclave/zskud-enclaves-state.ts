@@ -1,7 +1,7 @@
 import { Field, Struct } from "o1js";
 import { MerkleRoot } from "../../core/map/merkle-root.js";
+import { ObserverMap } from "./observer-map.js";
 
-export class ObserverMap {}
 export class ValidatorMap {}
 export class OrchestratorMap {}
 export class IntentSponsorMap {}

@@ -30,7 +30,7 @@ export class BridgeSendIntentUpdate extends Struct({
   rollupJustBurned: UInt64,
 }) {}
 
-export class BridgeReceiveIntentUpdate extends Struct({
+export class BridgeBackIntentUpdate extends Struct({
   bridgedAddress: BridgedAddress,
   bridgeTotalBurned: UInt64,
   mintAmount: UInt64,

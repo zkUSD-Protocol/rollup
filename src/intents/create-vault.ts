@@ -7,14 +7,9 @@ import {
   ZkProgram,
 } from 'o1js';
 import { VaultAddress } from '../domain/vault/vault-address.js';
-import { CreateVaultIntentUpdate, DepositIntentUpdate } from '../domain/vault/vault-update.js';
-import { VaultMap } from '../domain/vault/vault-map.js';
+import { CreateVaultIntentUpdate } from '../domain/vault/vault-update.js';
 import { CollateralType } from '../domain/vault/vault-collateral-type.js';
-import { CollateralIoMap } from '../domain/bridging/collateral-io-map.js';
-import { MerkleRoot } from '../core/map/merkle-root.js';
-import { CollateralIOProof } from '../domain/bridging/prove-collateral-io.js';
-import { ObserverMap } from '../domain/enclave/zskud-enclaves-state.js';
-import { VaultParameters } from '../domain/vault/vault.js';
+
 /**
  * Generates both public and private inputs for CreateVaultIntent.
  */

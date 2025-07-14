@@ -21,6 +21,8 @@ import { MintIntentProof } from "./intents/mint.js";
 import { BridgeIntentProof } from "./intents/bridge.js";
 import { BridgeIoMap } from "./domain/bridging/bridge-io-map.js";
 import { BridgeMap } from "./domain/bridging/bridge-map.js";
+import { ObserverMap } from "./domain/enclave/observer-map.js";
+import { BridgeBackIntentProof } from "./intents/bridge-back.js";
 
 // make into a heler function
 function getActualVaultParams(publicInput: FizkRollupState, collateralType: CollateralType): VaultParameters {
@@ -214,6 +216,13 @@ export class BridgePrivateInput extends Struct({
 	historicalBlockStateMap: HistoricalBlockStateMap,
 }) {}
 
+export class BridgeBackPrivateInput extends Struct({
+	proof: BridgeBackIntentProof,
+	observerMap: ObserverMap,
+	zkusdMap: ZkUsdMap,
+	bridgeIoMap: BridgeIoMap,
+}) {}
+
 // general todo:
 // this methods are not atomic so if the execution breaks at some point then 
 // the state may end up being inconsistent.
@@ -351,6 +360,47 @@ export const ZkusdRollup = ZkProgram({
 			const zkusdMap = privateInput.zkusdMap;
 			// verify and update the zkusd map
 			const newZkusdMapRoot = zkusdMap.verifyAndUpdate(publicInput.zkUsdState, privateInput.proof.publicOutput.zkusdMapUpdate);
+			publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
+			// update io map
+			const newIoMapRoot = privateInput.bridgeIoMap.verifiedSet(verifiedIoMapUpdate);
+			publicInput.zkUsdState.bridgeIoMapRoot = newIoMapRoot;
+			
+			return {
+				publicOutput: publicInput,
+			};
+			}
+	},
+
+	bridgeBack: {
+		privateInputs: [BridgeBackPrivateInput],
+		async method(
+			publicInput: FizkRollupState,
+			privateInput: BridgeBackPrivateInput & { zkusdMap: ZkUsdMap, bridgeIoMap: BridgeIoMap, observerMap: ObserverMap, historicalBlockStateMap: HistoricalBlockStateMap }): Promise<{ publicOutput: FizkRollupState }> {
+			// Verify the intent proof
+			privateInput.proof.verify();
+			// verify proof data against protocol parameters
+			privateInput.proof.publicOutput.observersSignedCount.assertGreaterThanOrEqual(publicInput.governanceState.observersMultiSigTreshold);
+
+			const bridgedAddress = privateInput.proof.publicOutput.bridgeIntentUpdate.bridgedAddress;
+			
+			// verify map liveness
+			privateInput.zkusdMap.getRoot().assertEquals(publicInput.zkUsdState.zkUsdMapRoot);
+			privateInput.bridgeIoMap.getRoot().assertEquals(publicInput.zkUsdState.bridgeIoMapRoot);
+
+			// -- 	Verify intent preconditions
+			const preconditions = privateInput.proof.publicInput;
+			publicInput.zkUsdEnclavesState.observerKeysMerkleRoot.assertEquals(preconditions.observerMapRoot);
+			// get total amount bridged back from the state
+			const actualAccumulators = privateInput.bridgeIoMap.getAccumulators(bridgedAddress);
+			
+			// total amount bridged back
+			actualAccumulators.totalMinted.assertEquals(preconditions.totalAmountBridgedBack);
+			
+			// -- verify the updates
+			// verify bridge io ma update
+			const verifiedIoMapUpdate = privateInput.bridgeIoMap.verifyBridgeReceiveIntent(privateInput.proof.publicOutput.bridgeIntentUpdate);
+			// verify and update the zkusd map
+			const newZkusdMapRoot = privateInput.zkusdMap.verifyAndUpdate(publicInput.zkUsdState, privateInput.proof.publicOutput.zkusdMapUpdate);
 			publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
 			// update io map
 			const newIoMapRoot = privateInput.bridgeIoMap.verifiedSet(verifiedIoMapUpdate);

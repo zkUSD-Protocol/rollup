@@ -13,7 +13,7 @@ import { CollateralType } from '../domain/vault/vault-collateral-type.js';
 import { CollateralIoMap } from '../domain/bridging/collateral-io-map.js';
 import { MerkleRoot } from '../core/map/merkle-root.js';
 import { CollateralIOProof } from '../domain/bridging/prove-collateral-io.js';
-import { ObserverMap } from '../domain/enclave/zskud-enclaves-state.js';
+import { ObserverMap } from '../domain/enclave/observer-map.js';
 import { VaultParameters } from '../domain/vault/vault.js';
 
 export class DepositIntentPreconditions extends Struct({

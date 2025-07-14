@@ -6,7 +6,7 @@ import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
 import { MerkleRoot } from '../../core/map/merkle-root.js';
 import { Provable, Struct } from 'o1js';
-import { BridgeReceiveIntentUpdate, BridgeSendIntentUpdate } from './io-map-update.js';
+import { BridgeBackIntentUpdate, BridgeSendIntentUpdate } from './io-map-update.js';
 import { BridgeIoAccumulators } from './bridge-io-accumulators.js';
 import { BridgedAddress } from './bridged-address.js';
 
@@ -65,7 +65,7 @@ export class BridgeIoMap extends BridgeIoMapBase {
     });
   }
 
-  verifyBridgeReceiveIntent(update: BridgeReceiveIntentUpdate): VerifiedBridgeMapUpdate {
+  verifyBridgeReceiveIntent(update: BridgeBackIntentUpdate): VerifiedBridgeMapUpdate {
     const oldAccumulators = this.getAccumulators(update.bridgedAddress);
     
     oldAccumulators.totalMinted.assertLessThan(update.bridgeTotalBurned);
