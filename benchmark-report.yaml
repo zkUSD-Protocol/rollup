@@ -1,0 +1,104 @@
+date: '2025-07-14T16:45:24.235Z'
+environment:
+  node: v23.9.0
+  platform: linux
+programs:
+  ObserverPriceProof:
+    compile_time_ms: 0
+    methods:
+      dummy:
+        constraints: 0
+  ObserverBridgeStateProof:
+    compile_time_ms: 0
+    methods:
+      proveBridgeAccumulators:
+        constraints: 5801
+  GovernanceAction1Intent:
+    compile_time_ms: 0
+    methods:
+      dummy:
+        constraints: 0
+  GovernanceAction2Intent:
+    compile_time_ms: 0
+    methods:
+      dummy:
+        constraints: 0
+  CollateralIOProof:
+    compile_time_ms: 0
+    methods:
+      dummy:
+        constraints: 12
+  GovActionIntent:
+    compile_time_ms: 0
+    methods:
+      action1:
+        constraints: 0
+      createProposal:
+        constraints: 0
+  BridgeIntent:
+    compile_time_ms: 0
+    methods:
+      bridge:
+        constraints: 8375
+  BridgeBackIntent:
+    compile_time_ms: 0
+    methods:
+      bridge:
+        constraints: 458
+  CreateVaultIntent:
+    compile_time_ms: 0
+    methods:
+      createVault:
+        constraints: 363
+  TransferIntent:
+    compile_time_ms: 0
+    methods:
+      transfer:
+        constraints: 7870
+  DepositIntent:
+    compile_time_ms: 0
+    methods:
+      deposit:
+        constraints: 404
+  RedeemIntent:
+    compile_time_ms: 0
+    methods:
+      redeem:
+        constraints: 381
+  MintIntent:
+    compile_time_ms: 0
+    methods:
+      mint:
+        constraints: 960
+  BurnIntent:
+    compile_time_ms: 0
+    methods:
+      burn:
+        constraints: 8171
+  ZkusdRollup:
+    compile_time_ms: 0
+    methods:
+      blockCloseIntent:
+        constraints: 3566
+      bridge:
+        constraints: 26340
+      bridgeBack:
+        constraints: 27762
+      burn:
+        constraints: 22265
+      createVault:
+        constraints: 5582
+      depositCollateral:
+        constraints: 5304
+      govCreateProposal:
+        constraints: 5209
+      govExecuteUpdateIntent:
+        constraints: 3152
+      govVetoProposal:
+        constraints: 4697
+      mint:
+        constraints: 22253
+      redeemCollateral:
+        constraints: 5291
+      transfer:
+        constraints: 20492

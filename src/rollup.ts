@@ -1,9 +1,25 @@
+// zkusd-rollup-with-logs.ts – same logic, now instrumented with lightweight logs
+// -----------------------------------------------------------------------------
+// Helper: cheap logger that works inside the circuit (does not add constraints)
+// -----------------------------------------------------------------------------
 import { Field, Poseidon, Provable, Struct, UInt64, ZkProgram } from "o1js";
+
+function log(msg: string, v?: unknown) {
+console.warn(msg, v);
+}
+
+// --- domain & intent imports (unchanged) -------------------------------------
 import { FizkRollupState } from "./domain/rollup-state.js";
 import { BlockCloseIntentPrivateInput } from "./intents/block-close-intent.js";
 import { HistoricalBlockStateMap } from "./domain/block-info/historical-block-state-map.js";
 import { BlockInfoState } from "./domain/block-info/block-info-state.js";
-import { proposalInclusionCommitmentForStatus, GovActionType, GovProposalStatus, GovActionIntentProof, GovSystemUpdate } from "./intents/governance/wrapper.js";
+import {
+  proposalInclusionCommitmentForStatus,
+  GovActionType,
+  GovProposalStatus,
+  GovActionIntentProof,
+  GovSystemUpdate,
+} from "./intents/governance/wrapper.js";
 import { ProposalMap } from "./domain/governance/proposal-map.js";
 import { Timestamp } from "./core/timestamp.js";
 import { CreateVaultIntentProof } from "./intents/create-vault.js";
@@ -25,132 +41,101 @@ import { ObserverMap } from "./domain/enclave/observer-map.js";
 import { BridgeBackIntentProof } from "./intents/bridge-back.js";
 import { getRoot } from "./core/map/merkle-root.js";
 
-// make into a heler function
-function getActualVaultParams(publicInput: FizkRollupState, collateralType: CollateralType): VaultParameters {
-	return Provable.if(collateralType.equals(CollateralType.SUI),
-		publicInput.vaultState.suiVaultTypeState.parameters,
-		publicInput.vaultState.minaVaultTypeState.parameters
-	);
+// -----------------------------------------------------------------------------
+// Utility helpers (untouched except logging replacements)
+// -----------------------------------------------------------------------------
+function getActualVaultParams(
+  publicInput: FizkRollupState,
+  collateralType: CollateralType,
+): VaultParameters {
+  return Provable.if(
+    collateralType.equals(CollateralType.SUI),
+    publicInput.vaultState.suiVaultTypeState.parameters,
+    publicInput.vaultState.minaVaultTypeState.parameters,
+  );
 }
 
-/**
- * Applies governance updates to the rollup state
- * @param rollupState The current rollup state to update
- * @param govUpdate The governance system update to apply
- */
 function applyGovernanceUpdates(
-	rollupState: FizkRollupState,
-	govUpdate: GovSystemUpdate
+  rollupState: FizkRollupState,
+  govUpdate: GovSystemUpdate,
 ): void {
-	// Apply vault parameter updates
-	rollupState.vaultState.minaVaultTypeState.parameters = Provable.if(
-		govUpdate.applyMinaVaultParamsUpdate,
-		govUpdate.minaVaultParamsUpdate,
-		rollupState.vaultState.minaVaultTypeState.parameters
-	);
+  rollupState.vaultState.minaVaultTypeState.parameters = Provable.if(
+    govUpdate.applyMinaVaultParamsUpdate,
+    govUpdate.minaVaultParamsUpdate,
+    rollupState.vaultState.minaVaultTypeState.parameters,
+  );
 
-	rollupState.vaultState.suiVaultTypeState.parameters = Provable.if(
-		govUpdate.applySuiVaultParamsUpdate,
-		govUpdate.suiVaultParamsUpdate,
-		rollupState.vaultState.suiVaultTypeState.parameters
-	);
+  rollupState.vaultState.suiVaultTypeState.parameters = Provable.if(
+    govUpdate.applySuiVaultParamsUpdate,
+    govUpdate.suiVaultParamsUpdate,
+    rollupState.vaultState.suiVaultTypeState.parameters,
+  );
 
-	// Apply enclave state update
-	rollupState.zkUsdEnclavesState = Provable.if(
-		govUpdate.applyEnclaveStateUpdate,
-		govUpdate.enclaveStateUpdate,
-		rollupState.zkUsdEnclavesState
-	);
+  rollupState.zkUsdEnclavesState = Provable.if(
+    govUpdate.applyEnclaveStateUpdate,
+    govUpdate.enclaveStateUpdate,
+    rollupState.zkUsdEnclavesState,
+  );
 
-	// Apply global parameters update
-	rollupState.globalParametersState = Provable.if(
-		govUpdate.applyGlobalParametersStateUpdate,
-		govUpdate.globalParametersStateUpdate,
-		rollupState.globalParametersState
-	);
+  rollupState.globalParametersState = Provable.if(
+    govUpdate.applyGlobalParametersStateUpdate,
+    govUpdate.globalParametersStateUpdate,
+    rollupState.globalParametersState,
+  );
 
-	// Apply governance state update
-	rollupState.governanceState = Provable.if(
-		govUpdate.applyGovernanceStateUpdate,
-		rollupState.governanceState.applyUpdate(govUpdate.governanceStateUpdate),
-		rollupState.governanceState
-	);
+  rollupState.governanceState = Provable.if(
+    govUpdate.applyGovernanceStateUpdate,
+    rollupState.governanceState.applyUpdate(govUpdate.governanceStateUpdate),
+    rollupState.governanceState,
+  );
 
-	// Apply regulatory state update
-	rollupState.regulatoryState = Provable.if(
-		govUpdate.applyRegulatoryStateUpdate,
-		govUpdate.regulatoryStateUpdate,
-		rollupState.regulatoryState
-	);
+  rollupState.regulatoryState = Provable.if(
+    govUpdate.applyRegulatoryStateUpdate,
+    govUpdate.regulatoryStateUpdate,
+    rollupState.regulatoryState,
+  );
 }
 
-
-
-/**
- * Updates the block info state with new block information and stores the previous state hash
- * @param historicalStateTree The historical state tree to update
- * @param timestamp The timestamp of the block
- * @param blockInfoState The block info state to update
- * @param previousStateHash The hash of the previous state
- * @returns The updated block info state
- */
 function updateBlockInfoState(
   historicalStateTree: HistoricalBlockStateMap,
   timestamp: Timestamp,
   blockInfoState: BlockInfoState,
   previousStateHash: Field,
 ): void {
-  // Increment block number
   blockInfoState.blockNumber = blockInfoState.blockNumber.add(1);
-  
-  // TODO: Extract timestamp from the proof
   blockInfoState.previousBlockClosureTimestamp = timestamp;
-  
-  // TODO: Find the intent sequence
   blockInfoState.intentSequence = blockInfoState.intentSequence.add(1);
-  
-  // Store the previous state hash in the historical state tree
   historicalStateTree.insert(blockInfoState.blockNumber.sub(1).value, previousStateHash);
 }
 
-/**
- * Verifies that a proposal snapshot is valid and not too old
- * @param historicalBlockStateMap The historical block state map
- * @param snapshotState The snapshot state to verify
- * @param currentBlockInfo The current block information
- * @param snapshotValidityMillis The maximum age of the snapshot in milliseconds
- * @throws If the snapshot verification fails
- */
 function verifyProposalSnapshot(
-	historicalBlockStateMap: HistoricalBlockStateMap,
-	snapshotState: FizkRollupState,
-	currentBlockInfo: BlockInfoState,
-	snapshotValidityMillis: UInt64
+  historicalBlockStateMap: HistoricalBlockStateMap,
+  snapshotState: FizkRollupState,
+  currentBlockInfo: BlockInfoState,
+  snapshotValidityMillis: UInt64,
 ): void {
-	// Verify the historical block state map root matches the current state's historical state map root
-	historicalBlockStateMap.root.assertEquals(currentBlockInfo.historicalStateMerkleRoot.root);
-
-	// The snapshot must exist within history within threshold
-	const snapshotHash = Poseidon.hash(snapshotState.toFields());
-	console.warn('verifyPrposalSnapshot');
-	console.warn('histprocal',historicalBlockStateMap.root);
-	historicalBlockStateMap.get(snapshotState.blockInfoState.blockNumber.value).assertEquals(snapshotHash);
-
-	// Verify that the state matches the hash
-	Poseidon.hash(snapshotState.toFields()).assertEquals(snapshotHash);
-
-	// Check if the snapshot is not too old
-	const snapshotTimestamp = snapshotState.blockInfoState.previousBlockClosureTimestamp;
-	const currentTimestamp = currentBlockInfo.previousBlockClosureTimestamp;
-	currentTimestamp.isGreaterBy(snapshotTimestamp, snapshotValidityMillis).assertFalse();
+  historicalBlockStateMap.root.assertEquals(
+    currentBlockInfo.historicalStateMerkleRoot.root,
+  );
+  const snapshotHash = Poseidon.hash(snapshotState.toFields());
+  log("verifyProposalSnapshot: map root", historicalBlockStateMap.root);
+  historicalBlockStateMap
+    .get(snapshotState.blockInfoState.blockNumber.value)
+    .assertEquals(snapshotHash);
+  Poseidon.hash(snapshotState.toFields()).assertEquals(snapshotHash);
+  const snapshotTimestamp = snapshotState.blockInfoState.previousBlockClosureTimestamp;
+  const currentTimestamp = currentBlockInfo.previousBlockClosureTimestamp;
+  currentTimestamp.isGreaterBy(snapshotTimestamp, snapshotValidityMillis).assertFalse();
 }
 
-// the private input for the rollup level of the govactionintent
-
+// -----------------------------------------------------------------------------
+// Structs (unchanged)
+// -----------------------------------------------------------------------------
 export class GovExecuteUpdatePrivateInput extends Struct({
-	proof: GovActionIntentProof,
-	liveProposalMap: ProposalMap,
+  proof: GovActionIntentProof,
+  liveProposalMap: ProposalMap,
 }) {}
+
 
 export class GovCreateProposalPrivateInput extends Struct({
 	proof: GovActionIntentProof,
@@ -218,12 +203,11 @@ export class BridgeBackPrivateInput extends Struct({
 	bridgeIoMap: BridgeIoMap,
 }) {}
 
-// general todo:
-// this methods are not atomic so if the execution breaks at some point then 
-// the state may end up being inconsistent.
-// Make sure that it won't happen or clone the data before.
+// -----------------------------------------------------------------------------
+// ZkProgram with logs
+// -----------------------------------------------------------------------------
 export const ZkusdRollup = ZkProgram({
-  name: 'ZkusdRollup',
+  name: "ZkusdRollup",
   publicInput: FizkRollupState,
   publicOutput: FizkRollupState,
   methods: {
@@ -231,477 +215,622 @@ export const ZkusdRollup = ZkProgram({
       privateInputs: [CreateVaultPrivateInput],
       async method(
         publicInput: FizkRollupState,
-        privateInput: CreateVaultPrivateInput & { proof: CreateVaultIntentProof, vaultMap: VaultMap, iomap: CollateralIoMap },
+        privateInput: CreateVaultPrivateInput & {
+          proof: CreateVaultIntentProof;
+          vaultMap: VaultMap;
+          iomap: CollateralIoMap;
+        },
       ): Promise<{ publicOutput: FizkRollupState }> {
-        // Verify the intent proof
+        log("createVault: start");
+        log("createVault: before proof.verify");
         privateInput.proof.verify();
+        log("createVault: after proof.verify");
 
-		// verify vault update
-		const verifiedVaultUpdate = VaultMap.verifyCreateVaultUpdate(privateInput.vaultMap, publicInput.vaultState,privateInput.proof.publicOutput.update);
-		
-		// Verify the io map root matches the live io map
-		const ioMap = privateInput.iomap;
-		getRoot(ioMap).assertEquals(publicInput.vaultState.ioMapRoot);
+        log("createVault: verify vault update");
+        const verifiedVaultUpdate = VaultMap.verifyCreateVaultUpdate(
+          privateInput.vaultMap,
+          publicInput.vaultState,
+          privateInput.proof.publicOutput.update,
+        );
 
-		// create io accumulators for the vault
-		ioMap.insert(privateInput.proof.publicOutput.update.vaultAddress.key, CollateralIOAccumulators.empty().pack());
-		publicInput.vaultState.ioMapRoot = getRoot(ioMap);
+        const ioMap = privateInput.iomap;
+        getRoot(ioMap).assertEquals(publicInput.vaultState.ioMapRoot);
+        ioMap.insert(
+          privateInput.proof.publicOutput.update.vaultAddress.key,
+          CollateralIOAccumulators.empty().pack(),
+        );
+        publicInput.vaultState.ioMapRoot = getRoot(ioMap);
 
-        // update the vault map
-		const vaultMap = privateInput.vaultMap;
-		const newVaultMapRoot = VaultMap.verifiedInsert(vaultMap, verifiedVaultUpdate);
-		publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
+        log("createVault: updating VaultMap");
+        const vaultMap = privateInput.vaultMap;
+        const newVaultMapRoot = VaultMap.verifiedInsert(
+          vaultMap,
+          verifiedVaultUpdate,
+        );
+        publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
 
-        return {
-          publicOutput: publicInput,
-        };
+        return { publicOutput: publicInput };
       },
     },
-	depositCollateral: {
-		privateInputs: [DepositPrivateInput],
-		async method(
-			publicInput: FizkRollupState,
-			privateInput: DepositPrivateInput & { vaultMap: VaultMap, iomap: CollateralIoMap }): Promise<{ publicOutput: FizkRollupState }> {
-				
 
-
-			console.warn('depositCollateral');
-			
-			// Verify the intent proof
-			privateInput.proof.verify();
-			const update = privateInput.proof.publicOutput.update;
-			// Verify intent preconditions
-			const preconditions = privateInput.proof.publicInput;
-			const actualVaultParams = getActualVaultParams(publicInput, update.collateralType);
-			preconditions.vaultParameters.equals(actualVaultParams).assertTrue();
-			preconditions.observerKeysMerkleRoot.assertEquals(publicInput.zkUsdEnclavesState.observerKeysMerkleRoot);
-
-			// Same for iomap
-			const ioMap = privateInput.iomap;
-			getRoot(ioMap).assertEquals(publicInput.vaultState.ioMapRoot);
-			
-			// Verify vault update
-			const verifiedVaultUpdate = VaultMap.verifyDepositCollateralUpdate(privateInput.vaultMap, publicInput.vaultState,update);
-
-			// verify and update io map
-			const verifiedIoUpdate = CollateralIoMap.verifyDeposit(privateInput.iomap, update);
-			publicInput.vaultState.ioMapRoot = CollateralIoMap.verifiedUpdate(privateInput.iomap, verifiedIoUpdate);
-
-			// update the vault map
-			const vaultMap = privateInput.vaultMap;
-			const newVaultMapRoot = VaultMap.verifiedUpdate(vaultMap, verifiedVaultUpdate);
-			publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
-
-
-			return {
-				publicOutput: publicInput,
-			};
-		},
-	},
-
-	redeemCollateral: {
-		privateInputs: [RedeemPrivateInput],
-		async method(
-			publicInput: FizkRollupState,
-			privateInput: RedeemPrivateInput & { vaultMap: VaultMap, iomap: CollateralIoMap }): Promise<{ publicOutput: FizkRollupState }> {
-
-				// Verify the intent proof
-				privateInput.proof.verify();
-				const update = privateInput.proof.publicOutput.update;
-				// Verify intent preconditions
-				const preconditions = privateInput.proof.publicInput;
-				const actualVaultParams = getActualVaultParams(publicInput, update.collateralType);
-				preconditions.vaultParameters.equals(actualVaultParams).assertTrue();
-				
-				// Verify that iomap is up-to-date
-				const iomap = privateInput.iomap;
-				getRoot(iomap).assertEquals(publicInput.vaultState.ioMapRoot);
-				
-				// verify vault update
-				const verifiedVaultUpdate = VaultMap.verifyRedeemCollateralUpdate(privateInput.vaultMap, publicInput.vaultState,update);
-				
-				// update io map
-				const verifiedIoUpdate = CollateralIoMap.verifyWithdraw(iomap, update);
-				publicInput.vaultState.ioMapRoot = CollateralIoMap.verifiedUpdate(iomap, verifiedIoUpdate);
-
-				// update the vault map
-				const newVaultMapRoot = VaultMap.verifiedUpdate(privateInput.vaultMap, verifiedVaultUpdate);
-				publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
-
-				return {
-					publicOutput: publicInput,
-				};
-			},
-	},	
-
-	bridge: {
-		privateInputs: [BridgePrivateInput],
-		async method(
-			publicInput: FizkRollupState,
-			privateInput: BridgePrivateInput & { zkusdMap: ZkUsdMap, bridgeIoMap: BridgeIoMap, bridgeMap: BridgeMap, historicalBlockStateMap: HistoricalBlockStateMap}): Promise<{ publicOutput: FizkRollupState }> {
-				// Verify the intent proof
-			privateInput.proof.verify();
-
-			// -- 	Verify intent preconditions
-			const preconditions = privateInput.proof.publicInput;
-			// historical proof check
-			getRoot(privateInput.historicalBlockStateMap).assertEquals(publicInput.blockInfoState.historicalStateMerkleRoot);
-			// the map must contain the block with the snapshot state
-			console.warn('bridge historicalStateMap root');
-			console.warn(privateInput.historicalBlockStateMap.root);
-			privateInput.historicalBlockStateMap.get(preconditions.noteSnapshotBlockNumber.value).assertEquals(preconditions.noteSnapshotBlockHash);
-			// the block number must not be greater than the current block number
-			preconditions.noteSnapshotBlockNumber.assertLessThanOrEqual(publicInput.blockInfoState.blockNumber);
-			// bridge map root must match
-			getRoot(privateInput.bridgeMap).assertEquals(publicInput.zkUsdState.bridgeIoMapRoot)
-			
-			// verify bridge io ma update
-			const verifiedIoMapUpdate = BridgeIoMap.verifyBridgeSendIntent(privateInput.bridgeIoMap,privateInput.proof.publicOutput.bridgeIntentUpdate);
-			// zkusd
-			const zkusdMap = privateInput.zkusdMap;
-			// verify and update the zkusd map
-			const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(zkusdMap,publicInput.zkUsdState, privateInput.proof.publicOutput.zkusdMapUpdate);
-			publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
-			// update io map
-			const newIoMapRoot = BridgeIoMap.verifiedSet(privateInput.bridgeIoMap, verifiedIoMapUpdate);
-			publicInput.zkUsdState.bridgeIoMapRoot = newIoMapRoot;
-			
-			return {
-				publicOutput: publicInput,
-			};
-			}
-	},
-
-	bridgeBack: {
-		privateInputs: [BridgeBackPrivateInput],
-		async method(
-			publicInput: FizkRollupState,
-			privateInput: BridgeBackPrivateInput & { zkusdMap: ZkUsdMap, bridgeIoMap: BridgeIoMap, observerMap: ObserverMap, historicalBlockStateMap: HistoricalBlockStateMap }): Promise<{ publicOutput: FizkRollupState }> {
-			// Verify the intent proof
-			privateInput.proof.verify();
-			// verify proof data against protocol parameters
-			privateInput.proof.publicOutput.observersSignedCount.assertGreaterThanOrEqual(publicInput.governanceState.observersMultiSigTreshold);
-
-			const bridgedAddress = privateInput.proof.publicOutput.bridgeIntentUpdate.bridgedAddress;
-			
-			// verify map liveness
-			getRoot(privateInput.zkusdMap).assertEquals(publicInput.zkUsdState.zkUsdMapRoot);
-			getRoot(privateInput.bridgeIoMap).assertEquals(publicInput.zkUsdState.bridgeIoMapRoot);
-
-			// -- 	Verify intent preconditions
-			const preconditions = privateInput.proof.publicInput;
-			publicInput.zkUsdEnclavesState.observerKeysMerkleRoot.assertEquals(preconditions.observerMapRoot);
-			// get total amount bridged back from the state
-			const actualAccumulators = BridgeIoMap.getAccumulators(privateInput.bridgeIoMap,bridgedAddress);
-			
-			// total amount bridged back
-			actualAccumulators.totalMinted.assertEquals(preconditions.totalAmountBridgedBack);
-			
-			// -- verify the updates
-			// verify bridge io ma update
-			const verifiedIoMapUpdate = BridgeIoMap.verifyBridgeReceiveIntent(privateInput.bridgeIoMap,privateInput.proof.publicOutput.bridgeIntentUpdate);
-			// verify and update the zkusd map
-			const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(privateInput.zkusdMap,publicInput.zkUsdState, privateInput.proof.publicOutput.zkusdMapUpdate);
-			publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
-			// update io map
-			const newIoMapRoot = BridgeIoMap.verifiedSet(privateInput.bridgeIoMap, verifiedIoMapUpdate);
-			publicInput.zkUsdState.bridgeIoMapRoot = newIoMapRoot;
-			
-			return {
-				publicOutput: publicInput,
-			};
-			}
-	},
-
-	burn: {
-		privateInputs: [BurnPrivateInput],
-		async method(
-			publicInput: FizkRollupState,
-			privateInput: BurnPrivateInput & { zkusdMap: ZkUsdMap, vaultMap: VaultMap}): Promise<{ publicOutput: FizkRollupState }> {
-				// Verify the intent proof
-			privateInput.proof.verify();
-
-			// -- 	Verify intent preconditions
-			const preconditions = privateInput.proof.publicInput;
-			const vaultUpdate = privateInput.proof.publicOutput.vaultUpdate;
-			const actualVaultParams = getActualVaultParams(publicInput, vaultUpdate.collateralType);
-			preconditions.vaultParameters.equals(actualVaultParams).assertTrue();
-			// historical proof check
-			getRoot(privateInput.historicalBlockStateMap).assertEquals(publicInput.blockInfoState.historicalStateMerkleRoot);
-			// the map must contain the block with the snapshot state
-			console.warn('burn historicalBlockStateMap root');
-			console.warn(privateInput.historicalBlockStateMap.root);
-			privateInput.historicalBlockStateMap.get(preconditions.noteSnapshotBlockNumber.value).assertEquals(preconditions.noteSnapshotBlockHash);
-			// the block number must not be greater than the current block number
-			preconditions.noteSnapshotBlockNumber.assertLessThanOrEqual(publicInput.blockInfoState.blockNumber);
-			
-			// verify vault update
-			const verifiedVaultUpdate = VaultMap.verifyRepayDebtUpdate(privateInput.vaultMap, publicInput.vaultState,vaultUpdate);
-			// zkusd
-			const zkusdMap = privateInput.zkusdMap;
-			// verify and update the zkusd map
-			const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(zkusdMap,publicInput.zkUsdState, privateInput.proof.publicOutput.zkusdMapUpdate);
-			publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
-			
-			// update the vault map
-			const newVaultMapRoot = VaultMap.verifiedUpdate(privateInput.vaultMap, verifiedVaultUpdate);
-			publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
-
-			return {
-				publicOutput: publicInput,
-			};
-		},
-	},	
-
-	mint: {
-		privateInputs: [MintPrivateInput],
-		async method(
-			publicInput: FizkRollupState,
-			privateInput: MintPrivateInput & { zkusdMap: ZkUsdMap, vaultMap: VaultMap, historicalBlockStateMap: HistoricalBlockStateMap }): Promise<{ publicOutput: FizkRollupState }> {
-			// == Verify the intent proof
-			console.warn('mint');
-			privateInput.proof.verify();
-			const vaultUpdate = privateInput.proof.publicOutput.vaultUpdate;
-
-			// == Verify preconditions
-			const currentBlockNumber = publicInput.blockInfoState.blockNumber;
-			const priceBlockNumber = privateInput.proof.publicInput.rollupStateBlockNumber;
-
-			// pick the price from the rollup state
-			const collateralPriceNanoUsd = Provable.if(vaultUpdate.collateralType.equals(CollateralType.SUI), publicInput.vaultState.suiVaultTypeState.priceNanoUsd, publicInput.vaultState.minaVaultTypeState.priceNanoUsd);
-
-			// verify state hash
-			const currentStateCondition = currentBlockNumber.equals(priceBlockNumber).and(
-				privateInput.proof.publicInput.collateralPriceNanoUsd.equals(collateralPriceNanoUsd)
-			)
-
-			// get historical state from the historical block state map
-			console.warn('mint historicalBlockStateMap root');
-			console.warn(privateInput.historicalBlockStateMap.root);
-			const previousBlockStateHash = privateInput.historicalBlockStateMap.get(priceBlockNumber.value);
-
-			const previousStateCondition = currentBlockNumber.sub(1).equals(priceBlockNumber).and(
-				previousBlockStateHash.equals(privateInput.proof.publicInput.rollupStateHash)
-			);
-
-			// its either the current block or the previous block
-			currentStateCondition.or(previousStateCondition).assertTrue();
-
-			// verify vault map update
-			const verifiedVaultUpdate = VaultMap.verifyMintUpdate(privateInput.vaultMap, publicInput.vaultState,vaultUpdate);
-			// verify and update zkusd map
-			const zkusdMap = privateInput.zkusdMap;
-			const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(zkusdMap,publicInput.zkUsdState, privateInput.proof.publicOutput.zkusdMapUpdate);
-			publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
-			
-			// update the vault map
-			publicInput.vaultState.vaultMapRoot = VaultMap.verifiedUpdate(privateInput.vaultMap, verifiedVaultUpdate);
-			
-			return {
-				publicOutput: publicInput,
-			};
-		}
-	},	
-
-
-	transfer: {
-		privateInputs: [TransferPrivateInput],
-		async method(
-			publicInput: FizkRollupState,
-			privateInput: TransferPrivateInput & { zkusdMap: ZkUsdMap, historicalBlockStateMap: HistoricalBlockStateMap }): Promise<{ publicOutput: FizkRollupState }> {
-				
-			console.warn('transfer');
+    depositCollateral: {
+      privateInputs: [DepositPrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: DepositPrivateInput & {
+          vaultMap: VaultMap;
+          iomap: CollateralIoMap;
+        },
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        log("depositCollateral: start");
+        log("depositCollateral: before proof.verify");
         privateInput.proof.verify();
-        const { nullifiers, outputNoteCommitments } = privateInput.proof.publicOutput.zkusdMapUpdate;
-        const { noteSnapshotBlockNumber, noteSnapshotBlockHash } = privateInput.proof.publicInput;
+        log("depositCollateral: after proof.verify");
 
-		// verify the proof preconditions
-		getRoot(privateInput.historicalBlockStateMap).assertEquals(publicInput.blockInfoState.historicalStateMerkleRoot);
-		// the map must contain the block with the snapshot state
-		console.warn('transfer historicalBlockStateMap root');
-		console.warn(privateInput.historicalBlockStateMap.root);
-		privateInput.historicalBlockStateMap.get(noteSnapshotBlockNumber.value).assertEquals(noteSnapshotBlockHash);
-		// the block number must not be greater than the current block number
-		noteSnapshotBlockNumber.assertLessThanOrEqual(publicInput.blockInfoState.blockNumber);
-		// now we know that the input notes used in the transfer intent were existing at this point of time.
+        const update = privateInput.proof.publicOutput.update;
+        const preconditions = privateInput.proof.publicInput;
+        const actualVaultParams = getActualVaultParams(
+          publicInput,
+          update.collateralType,
+        );
+        preconditions.vaultParameters.equals(actualVaultParams).assertTrue();
+        preconditions.observerKeysMerkleRoot.assertEquals(
+          publicInput.zkUsdEnclavesState.observerKeysMerkleRoot,
+        );
 
-		const zkUsdMap = privateInput.zkusdMap;
-		
-		const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(zkUsdMap,publicInput.zkUsdState, privateInput.proof.publicOutput.zkusdMapUpdate);
-		publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
-			
-			return {
-				publicOutput: publicInput,
-			};
-		},
-	},
-	govCreateProposal: {
-		privateInputs: [GovCreateProposalPrivateInput],
-		async method(
-			publicInput: FizkRollupState,
-			privateInput: GovCreateProposalPrivateInput & { historicalBlockStateMap: HistoricalBlockStateMap, liveProposalMap: ProposalMap }): Promise<{ publicOutput: FizkRollupState }> {
-			console.warn('govCreateProposal');
+        const ioMap = privateInput.iomap;
+        getRoot(ioMap).assertEquals(publicInput.vaultState.ioMapRoot);
 
-		    // this should verify that enough stake voted for creation of this update
-		    // or that the council has signed it
-			// the stake root is later checked against the snapshot stake map
-			privateInput.proof.verify();
+        log("depositCollateral: verify vault update");
+        const verifiedVaultUpdate = VaultMap.verifyDepositCollateralUpdate(
+          privateInput.vaultMap,
+          publicInput.vaultState,
+          update,
+        );
 
-			// Verify the proposal snapshot is valid and not too old
-			verifyProposalSnapshot(
-				privateInput.historicalBlockStateMap,
-				privateInput.proposalSnapshotState,
-				publicInput.blockInfoState,
-				publicInput.governanceState.proposalSnapshotValidityMillis
-			);
+        log("depositCollateral: verify & update io map");
+        const verifiedIoUpdate = CollateralIoMap.verifyDeposit(ioMap, update);
+        publicInput.vaultState.ioMapRoot = CollateralIoMap.verifiedUpdate(
+          ioMap,
+          verifiedIoUpdate,
+        );
 
-			// proposal map must be up-to-date
-			publicInput.governanceState.proposalMapRoot.assertEquals(getRoot(privateInput.liveProposalMap));
+        log("depositCollateral: update VaultMap root");
+        const vaultMap = privateInput.vaultMap;
+        publicInput.vaultState.vaultMapRoot = VaultMap.verifiedUpdate(
+          vaultMap,
+          verifiedVaultUpdate,
+        );
 
-			// get the current proposal index
-			const proposalIndex = publicInput.governanceState.lastProposalIndex.add(1);
-			// update the current proposal index
-			publicInput.governanceState.lastProposalIndex = proposalIndex;
+		log("depositCollateral: end");
+        return { publicOutput: publicInput };
+      },
+    },
 
-			// create proposal commitment for the current block
-			const pendingProposalCommitment = proposalInclusionCommitmentForStatus(privateInput.proof.publicOutput.proposal, proposalIndex, publicInput.blockInfoState, GovProposalStatus.pending);
-			privateInput.liveProposalMap.insert(proposalIndex, pendingProposalCommitment);
+    redeemCollateral: {
+      privateInputs: [RedeemPrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: RedeemPrivateInput & {
+          vaultMap: VaultMap;
+          iomap: CollateralIoMap;
+        },
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        log("redeemCollateral: before proof.verify");
+        privateInput.proof.verify();
+        log("redeemCollateral: after proof.verify");
 
-			// update the proposal map root
-			publicInput.governanceState.proposalMapRoot = getRoot(privateInput.liveProposalMap);
+        const update = privateInput.proof.publicOutput.update;
+        const preconditions = privateInput.proof.publicInput;
+        const actualVaultParams = getActualVaultParams(
+          publicInput,
+          update.collateralType,
+        );
+        preconditions.vaultParameters.equals(actualVaultParams).assertTrue();
 
-			return { publicOutput: publicInput }
-		}
-	},
-	govVetoProposal: {
-		privateInputs: [GovVetoProposalPrivateInput],
-		async method(
-			publicInput: FizkRollupState,
-			privateInput: GovVetoProposalPrivateInput & { liveProposalMap: ProposalMap }): Promise<{ publicOutput: FizkRollupState }> {
-			console.warn('govVetoProposal');
-			privateInput.proof.verify();
+        const iomap = privateInput.iomap;
+        getRoot(iomap).assertEquals(publicInput.vaultState.ioMapRoot);
 
-			// asset it's a veto
-			privateInput.proof.publicOutput.govActionType.assertEquals(GovActionType.vetoProposal);
+        log("redeemCollateral: verify vault update");
+        const verifiedVaultUpdate = VaultMap.verifyRedeemCollateralUpdate(
+          privateInput.vaultMap,
+          publicInput.vaultState,
+          update,
+        );
 
-			// Verify the proposal snapshot is valid and not too old
-			verifyProposalSnapshot(
-				privateInput.historicalBlockStateMap as HistoricalBlockStateMap,
-				privateInput.proposalSnapshotState,
-				publicInput.blockInfoState,
-				publicInput.governanceState.proposalSnapshotValidityMillis
-			);
+        log("redeemCollateral: verify & update io map");
+        const verifiedIoUpdate = CollateralIoMap.verifyWithdraw(iomap, update);
+        publicInput.vaultState.ioMapRoot = CollateralIoMap.verifiedUpdate(
+          iomap,
+          verifiedIoUpdate,
+        );
 
-			// proposal map must be up-to-date
-			publicInput.governanceState.proposalMapRoot.assertEquals(getRoot(privateInput.liveProposalMap));
+        log("redeemCollateral: update VaultMap root");
+        publicInput.vaultState.vaultMapRoot = VaultMap.verifiedUpdate(
+          privateInput.vaultMap,
+          verifiedVaultUpdate,
+        );
 
-			// check if proposal is present under index and its state is pending
-			const proposalIndex = privateInput.proof.publicOutput.proposalIndex;
-			const proposalInclusionBlockInfo = privateInput.proof.publicOutput.proposalInclusionBlockInfo;
-			const pendingProposalCommitment = proposalInclusionCommitmentForStatus(privateInput.proof.publicOutput.proposal, proposalIndex, proposalInclusionBlockInfo, GovProposalStatus.pending);
-			console.warn('getVetoProposal propsalmap root');
-			console.warn(getRoot(privateInput.liveProposalMap));
-			privateInput.liveProposalMap.get(proposalIndex).assertEquals(pendingProposalCommitment);
+        return { publicOutput: publicInput };
+      },
+    },
 
-			// update the proposal to be vetoed
-			const vetoedProposalCommitment = proposalInclusionCommitmentForStatus(privateInput.proof.publicOutput.proposal, proposalIndex, proposalInclusionBlockInfo, GovProposalStatus.vetoed);
-			privateInput.liveProposalMap.update(proposalIndex, vetoedProposalCommitment);
+    bridge: {
+      privateInputs: [BridgePrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: BridgePrivateInput & {
+          zkusdMap: ZkUsdMap;
+          bridgeIoMap: BridgeIoMap;
+          bridgeMap: BridgeMap;
+          historicalBlockStateMap: HistoricalBlockStateMap;
+        },
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        log("bridge: before proof.verify");
+        privateInput.proof.verify();
+        log("bridge: after proof.verify");
 
-			// update the root
-			publicInput.governanceState.proposalMapRoot = getRoot(privateInput.liveProposalMap);
-			
-			return { publicOutput: publicInput }
-		}
-	},
-	govExecuteUpdateIntent: {
-		privateInputs: [GovExecuteUpdatePrivateInput],
-		async method(
-			publicInput: FizkRollupState,
-			privateInput: GovExecuteUpdatePrivateInput & { liveProposalMap: ProposalMap }): Promise<{ publicOutput: FizkRollupState }> {
-			console.warn('govExecuteUpdateIntent');
-				const proof = privateInput.proof;
-				const proofOutput = proof.publicOutput;
+        const preconditions = privateInput.proof.publicInput;
+        getRoot(privateInput.historicalBlockStateMap).assertEquals(
+          publicInput.blockInfoState.historicalStateMerkleRoot,
+        );
+        log("bridge: historicalStateMap root", privateInput.historicalBlockStateMap.root);
+        privateInput.historicalBlockStateMap
+          .get(preconditions.noteSnapshotBlockNumber.value)
+          .assertEquals(preconditions.noteSnapshotBlockHash);
+        preconditions.noteSnapshotBlockNumber.assertLessThanOrEqual(
+          publicInput.blockInfoState.blockNumber,
+        );
+        getRoot(privateInput.bridgeMap).assertEquals(
+          publicInput.zkUsdState.bridgeIoMapRoot,
+        );
 
-				// verify the update proof
-				proof.verify();
+        log("bridge: verify BridgeIoMap update");
+        const verifiedIoMapUpdate = BridgeIoMap.verifyBridgeSendIntent(
+          privateInput.bridgeIoMap,
+          privateInput.proof.publicOutput.bridgeIntentUpdate,
+        );
 
-				// assert it's an execution
-				proof.publicOutput.govActionType.assertEquals(GovActionType.executeUpdate);
-				
-				// proposal map must be up-to-date
-				getRoot(privateInput.liveProposalMap).assertEquals(publicInput.governanceState.proposalMapRoot);
+        log("bridge: update ZkUsdMap");
+        const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(
+          privateInput.zkusdMap,
+          publicInput.zkUsdState,
+          privateInput.proof.publicOutput.zkusdMapUpdate,
+        );
+        publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
 
-				// the proposal can be executed against the map
-				// verify the creation timestamp is bigger than the required delay
-				const proposalCreationTimestamp = proofOutput.proposalInclusionBlockInfo.previousBlockClosureTimestamp;
-				const currentTimestamp = publicInput.blockInfoState.previousBlockClosureTimestamp;
-				proposalCreationTimestamp.isGreaterBy(currentTimestamp, publicInput.governanceState.proposalExecutionDelayMillis);
+        log("bridge: update BridgeIoMap root");
+        publicInput.zkUsdState.bridgeIoMapRoot = BridgeIoMap.verifiedSet(
+          privateInput.bridgeIoMap,
+          verifiedIoMapUpdate,
+        );
 
-				// TODO do we also expire proposals that can be executed?
+        return { publicOutput: publicInput };
+      },
+    },
 
-				// get the proposal commitment and check against the map
-				const proposalCommitment = proposalInclusionCommitmentForStatus(proofOutput.proposal, proofOutput.proposalIndex, proofOutput.proposalInclusionBlockInfo, GovProposalStatus.pending);
-				console.warn('govExecuteUpdateIntent proposalMapRoot');
-				console.warn(getRoot(privateInput.liveProposalMap));
-				privateInput.liveProposalMap.get(proofOutput.proposalIndex).assertEquals(proposalCommitment);
-				
-				// the update is verified at this point - apply
-				const govUpdate = proofOutput.govSystemUpdate;
-				
-				applyGovernanceUpdates(publicInput, govUpdate);
+    bridgeBack: {
+      privateInputs: [BridgeBackPrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: BridgeBackPrivateInput & {
+          zkusdMap: ZkUsdMap;
+          bridgeIoMap: BridgeIoMap;
+          observerMap: ObserverMap;
+          historicalBlockStateMap: HistoricalBlockStateMap;
+        },
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        log("bridgeBack: before proof.verify");
+        privateInput.proof.verify();
+        log("bridgeBack: after proof.verify");
 
-				// update proposal map
-				const executedProposalCommitment = proposalInclusionCommitmentForStatus(proofOutput.proposal, proofOutput.proposalIndex, proofOutput.proposalInclusionBlockInfo, GovProposalStatus.executed);
-				privateInput.liveProposalMap.update(proofOutput.proposalIndex, executedProposalCommitment);
-				publicInput.governanceState.proposalMapRoot = getRoot(privateInput.liveProposalMap);
-				
-				return { publicOutput: publicInput }
-			}
-	},
-	// governanceUpdateIntent: {
-	// 	privateInputs: [GovActionIntentPrivateInput],
-	// 	async method(
-	// 		publicInput: ZkUsdRollupState,
-	// 		privateInput: GovActionIntentPrivateInput
-	// 	): Promise<{ publicOutput: ZkUsdRollupState }> {
-	// 		// Verify the intent proof
-	// 		privateInput.proof.verify();
-			
-	// 		// output is input plus value from the proof
-	// 		const publicOutput = ZkUsdRollupState.empty();
-	// 		return { publicOutput: publicInput };
-	// 	}
-	// },
-	blockCloseIntent: {
-		privateInputs: [BlockCloseIntentPrivateInput],
-		async method(
-			publicInput: FizkRollupState,
-			privateInput: BlockCloseIntentPrivateInput
-		): Promise<{ publicOutput: FizkRollupState }> {
-			console.warn('blockCloseIntent');
-			// save the previous state in the merkle map
-			const previousStateHash: Field = Poseidon.hash(publicInput.toFields());
+        privateInput.proof.publicOutput.observersSignedCount.assertGreaterThanOrEqual(
+          publicInput.governanceState.observersMultiSigTreshold,
+        );
 
-			// - update the price and rate for each collateral type
-			privateInput.oracleBlockDataProof.verify();
-			
-			publicInput.vaultState.minaVaultTypeState.priceNanoUsd = privateInput.oracleBlockDataProof.publicOutput.minaVaultTypeUpdate.priceNanoUsd
-			publicInput.vaultState.minaVaultTypeState.globalAccumulativeInterestRateScaled = privateInput.oracleBlockDataProof.publicOutput.minaVaultTypeUpdate.blockRateScaledUpdate;
+        const bridgedAddress =
+          privateInput.proof.publicOutput.bridgeIntentUpdate.bridgedAddress;
 
-			publicInput.vaultState.suiVaultTypeState.priceNanoUsd = privateInput.oracleBlockDataProof.publicOutput.suiVaultTypeUpdate.priceNanoUsd
-			publicInput.vaultState.suiVaultTypeState.globalAccumulativeInterestRateScaled = privateInput.oracleBlockDataProof.publicOutput.suiVaultTypeUpdate.blockRateScaledUpdate;
-			
-			// Update block info and store previous state in historical state tree
-			updateBlockInfoState(
-			  privateInput.historicalStateMap as HistoricalBlockStateMap,
-			  privateInput.oracleBlockDataProof.publicOutput.timestamp,
-			  publicInput.blockInfoState,
-			  previousStateHash,
-			);
+        getRoot(privateInput.zkusdMap).assertEquals(
+          publicInput.zkUsdState.zkUsdMapRoot,
+        );
+        getRoot(privateInput.bridgeIoMap).assertEquals(
+          publicInput.zkUsdState.bridgeIoMapRoot,
+        );
 
-			return { publicOutput: publicInput };
-		}
-	},
-}
-	
+        const preconditions = privateInput.proof.publicInput;
+        publicInput.zkUsdEnclavesState.observerKeysMerkleRoot.assertEquals(
+          preconditions.observerMapRoot,
+        );
+
+        const actualAccumulators = BridgeIoMap.getAccumulators(
+          privateInput.bridgeIoMap,
+          bridgedAddress,
+        );
+        actualAccumulators.totalMinted.assertEquals(
+          preconditions.totalAmountBridgedBack,
+        );
+
+        log("bridgeBack: verify BridgeIoMap receive update");
+        const verifiedIoMapUpdate = BridgeIoMap.verifyBridgeReceiveIntent(
+          privateInput.bridgeIoMap,
+          privateInput.proof.publicOutput.bridgeIntentUpdate,
+        );
+
+        log("bridgeBack: update ZkUsdMap");
+        const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(
+          privateInput.zkusdMap,
+          publicInput.zkUsdState,
+          privateInput.proof.publicOutput.zkusdMapUpdate,
+        );
+        publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
+
+        log("bridgeBack: update BridgeIoMap root");
+        publicInput.zkUsdState.bridgeIoMapRoot = BridgeIoMap.verifiedSet(
+          privateInput.bridgeIoMap,
+          verifiedIoMapUpdate,
+        );
+
+        return { publicOutput: publicInput };
+      },
+    },
+
+    burn: {
+      privateInputs: [BurnPrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: BurnPrivateInput & { zkusdMap: ZkUsdMap; vaultMap: VaultMap },
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        log("burn: before proof.verify");
+        privateInput.proof.verify();
+        log("burn: after proof.verify");
+
+        const preconditions = privateInput.proof.publicInput;
+        const vaultUpdate = privateInput.proof.publicOutput.vaultUpdate;
+        const actualVaultParams = getActualVaultParams(
+          publicInput,
+          vaultUpdate.collateralType,
+        );
+        preconditions.vaultParameters.equals(actualVaultParams).assertTrue();
+
+        getRoot(privateInput.historicalBlockStateMap).assertEquals(
+          publicInput.blockInfoState.historicalStateMerkleRoot,
+        );
+        log("burn: historicalBlockStateMap root", privateInput.historicalBlockStateMap.root);
+        privateInput.historicalBlockStateMap
+          .get(preconditions.noteSnapshotBlockNumber.value)
+          .assertEquals(preconditions.noteSnapshotBlockHash);
+        preconditions.noteSnapshotBlockNumber.assertLessThanOrEqual(
+          publicInput.blockInfoState.blockNumber,
+        );
+
+        log("burn: verify VaultMap repay update");
+        const verifiedVaultUpdate = VaultMap.verifyRepayDebtUpdate(
+          privateInput.vaultMap,
+          publicInput.vaultState,
+          vaultUpdate,
+        );
+
+        log("burn: update ZkUsdMap");
+        const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(
+          privateInput.zkusdMap,
+          publicInput.zkUsdState,
+          privateInput.proof.publicOutput.zkusdMapUpdate,
+        );
+        publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
+
+        log("burn: update VaultMap root");
+        publicInput.vaultState.vaultMapRoot = VaultMap.verifiedUpdate(
+          privateInput.vaultMap,
+          verifiedVaultUpdate,
+        );
+
+        return { publicOutput: publicInput };
+      },
+    },
+
+    mint: {
+      privateInputs: [MintPrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: MintPrivateInput & {
+          zkusdMap: ZkUsdMap;
+          vaultMap: VaultMap;
+          historicalBlockStateMap: HistoricalBlockStateMap;
+        },
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        log("mint: before proof.verify");
+        privateInput.proof.verify();
+        log("mint: after proof.verify");
+
+        const vaultUpdate = privateInput.proof.publicOutput.vaultUpdate;
+        const currentBlockNumber = publicInput.blockInfoState.blockNumber;
+        const priceBlockNumber = privateInput.proof.publicInput.rollupStateBlockNumber;
+
+        const collateralPriceNanoUsd = Provable.if(
+          vaultUpdate.collateralType.equals(CollateralType.SUI),
+          publicInput.vaultState.suiVaultTypeState.priceNanoUsd,
+          publicInput.vaultState.minaVaultTypeState.priceNanoUsd,
+        );
+
+        const currentStateCondition = currentBlockNumber
+          .equals(priceBlockNumber)
+          .and(
+            privateInput.proof.publicInput.collateralPriceNanoUsd.equals(
+              collateralPriceNanoUsd,
+            ),
+          );
+
+        log("mint: historicalBlockStateMap root", privateInput.historicalBlockStateMap.root);
+        const previousBlockStateHash = privateInput.historicalBlockStateMap.get(
+          priceBlockNumber.value,
+        );
+
+        const previousStateCondition = currentBlockNumber
+          .sub(1)
+          .equals(priceBlockNumber)
+          .and(
+            previousBlockStateHash.equals(
+              privateInput.proof.publicInput.rollupStateHash,
+            ),
+          );
+
+        currentStateCondition.or(previousStateCondition).assertTrue();
+
+        log("mint: verify VaultMap mint update");
+        const verifiedVaultUpdate = VaultMap.verifyMintUpdate(
+          privateInput.vaultMap,
+          publicInput.vaultState,
+          vaultUpdate,
+        );
+
+        log("mint: update ZkUsdMap");
+        const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(
+          privateInput.zkusdMap,
+          publicInput.zkUsdState,
+          privateInput.proof.publicOutput.zkusdMapUpdate,
+        );
+        publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
+
+        log("mint: update VaultMap root");
+        publicInput.vaultState.vaultMapRoot = VaultMap.verifiedUpdate(
+          privateInput.vaultMap,
+          verifiedVaultUpdate,
+        );
+
+        return { publicOutput: publicInput };
+      },
+    },
+
+    transfer: {
+      privateInputs: [TransferPrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: TransferPrivateInput & {
+          zkusdMap: ZkUsdMap;
+          historicalBlockStateMap: HistoricalBlockStateMap;
+        },
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        log("transfer: before proof.verify");
+        privateInput.proof.verify();
+        log("transfer: after proof.verify");
+
+        const { noteSnapshotBlockNumber, noteSnapshotBlockHash } =
+          privateInput.proof.publicInput;
+
+        getRoot(privateInput.historicalBlockStateMap).assertEquals(
+          publicInput.blockInfoState.historicalStateMerkleRoot,
+        );
+        log("transfer: historicalBlockStateMap root", privateInput.historicalBlockStateMap.root);
+        privateInput.historicalBlockStateMap
+          .get(noteSnapshotBlockNumber.value)
+          .assertEquals(noteSnapshotBlockHash);
+        noteSnapshotBlockNumber.assertLessThanOrEqual(
+          publicInput.blockInfoState.blockNumber,
+        );
+
+        log("transfer: update ZkUsdMap");
+        const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(
+          privateInput.zkusdMap,
+          publicInput.zkUsdState,
+          privateInput.proof.publicOutput.zkusdMapUpdate,
+        );
+        publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
+
+        return { publicOutput: publicInput };
+      },
+    },
+
+    govCreateProposal: {
+      privateInputs: [GovCreateProposalPrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: GovCreateProposalPrivateInput & {
+          historicalBlockStateMap: HistoricalBlockStateMap;
+          liveProposalMap: ProposalMap;
+        },
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        log("govCreateProposal: before proof.verify");
+        privateInput.proof.verify();
+        log("govCreateProposal: after proof.verify");
+
+        verifyProposalSnapshot(
+          privateInput.historicalBlockStateMap,
+          privateInput.proposalSnapshotState,
+          publicInput.blockInfoState,
+          publicInput.governanceState.proposalSnapshotValidityMillis,
+        );
+
+        publicInput.governanceState.proposalMapRoot.assertEquals(
+          getRoot(privateInput.liveProposalMap),
+        );
+
+        const proposalIndex = publicInput.governanceState.lastProposalIndex.add(1);
+        publicInput.governanceState.lastProposalIndex = proposalIndex;
+
+        const pendingProposalCommitment = proposalInclusionCommitmentForStatus(
+          privateInput.proof.publicOutput.proposal,
+          proposalIndex,
+          publicInput.blockInfoState,
+          GovProposalStatus.pending,
+        );
+        privateInput.liveProposalMap.insert(
+          proposalIndex,
+          pendingProposalCommitment,
+        );
+        publicInput.governanceState.proposalMapRoot = getRoot(
+          privateInput.liveProposalMap,
+        );
+
+        return { publicOutput: publicInput };
+      },
+    },
+
+    govVetoProposal: {
+      privateInputs: [GovVetoProposalPrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: GovVetoProposalPrivateInput & { liveProposalMap: ProposalMap },
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        log("govVetoProposal: before proof.verify");
+        privateInput.proof.verify();
+        log("govVetoProposal: after proof.verify");
+
+        privateInput.proof.publicOutput.govActionType.assertEquals(
+          GovActionType.vetoProposal,
+        );
+
+        verifyProposalSnapshot(
+          privateInput.historicalBlockStateMap as HistoricalBlockStateMap,
+          privateInput.proposalSnapshotState,
+          publicInput.blockInfoState,
+          publicInput.governanceState.proposalSnapshotValidityMillis,
+        );
+
+        publicInput.governanceState.proposalMapRoot.assertEquals(
+          getRoot(privateInput.liveProposalMap),
+        );
+
+        const proposalIndex = privateInput.proof.publicOutput.proposalIndex;
+        const proposalInclusionBlockInfo =
+          privateInput.proof.publicOutput.proposalInclusionBlockInfo;
+        const pendingProposalCommitment = proposalInclusionCommitmentForStatus(
+          privateInput.proof.publicOutput.proposal,
+          proposalIndex,
+          proposalInclusionBlockInfo,
+          GovProposalStatus.pending,
+        );
+        log("govVetoProposal: proposalMap root", getRoot(privateInput.liveProposalMap));
+        privateInput.liveProposalMap
+          .get(proposalIndex)
+          .assertEquals(pendingProposalCommitment);
+
+        const vetoedCommitment = proposalInclusionCommitmentForStatus(
+          privateInput.proof.publicOutput.proposal,
+          proposalIndex,
+          proposalInclusionBlockInfo,
+          GovProposalStatus.vetoed,
+        );
+        privateInput.liveProposalMap.update(proposalIndex, vetoedCommitment);
+        publicInput.governanceState.proposalMapRoot = getRoot(
+          privateInput.liveProposalMap,
+        );
+
+        return { publicOutput: publicInput };
+      },
+    },
+
+    govExecuteUpdateIntent: {
+      privateInputs: [GovExecuteUpdatePrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: GovExecuteUpdatePrivateInput & { liveProposalMap: ProposalMap },
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        log("govExecuteUpdateIntent: before proof.verify");
+        privateInput.proof.verify();
+        log("govExecuteUpdateIntent: after proof.verify");
+
+        const proofOutput = privateInput.proof.publicOutput;
+        proofOutput.govActionType.assertEquals(GovActionType.executeUpdate);
+
+        getRoot(privateInput.liveProposalMap).assertEquals(
+          publicInput.governanceState.proposalMapRoot,
+        );
+
+        const proposalCreationTimestamp =
+          proofOutput.proposalInclusionBlockInfo.previousBlockClosureTimestamp;
+        const currentTimestamp =
+          publicInput.blockInfoState.previousBlockClosureTimestamp;
+        proposalCreationTimestamp.isGreaterBy(
+          currentTimestamp,
+          publicInput.governanceState.proposalExecutionDelayMillis,
+        );
+
+        const proposalCommitment = proposalInclusionCommitmentForStatus(
+          proofOutput.proposal,
+          proofOutput.proposalIndex,
+          proofOutput.proposalInclusionBlockInfo,
+          GovProposalStatus.pending,
+        );
+        log("govExecuteUpdateIntent: proposalMap root", getRoot(privateInput.liveProposalMap));
+        privateInput.liveProposalMap
+          .get(proofOutput.proposalIndex)
+          .assertEquals(proposalCommitment);
+
+        const govUpdate = proofOutput.govSystemUpdate;
+        applyGovernanceUpdates(publicInput, govUpdate);
+
+        const executedCommitment = proposalInclusionCommitmentForStatus(
+          proofOutput.proposal,
+          proofOutput.proposalIndex,
+          proofOutput.proposalInclusionBlockInfo,
+          GovProposalStatus.executed,
+        );
+        privateInput.liveProposalMap.update(
+          proofOutput.proposalIndex,
+          executedCommitment,
+        );
+        publicInput.governanceState.proposalMapRoot = getRoot(
+          privateInput.liveProposalMap,
+        );
+
+        return { publicOutput: publicInput };
+      },
+    },
+
+    blockCloseIntent: {
+      privateInputs: [BlockCloseIntentPrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: BlockCloseIntentPrivateInput,
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        log("blockCloseIntent: start");
+        const previousStateHash: Field = Poseidon.hash(publicInput.toFields());
+
+        log("blockCloseIntent: before oracle proof.verify");
+        privateInput.oracleBlockDataProof.verify();
+        log("blockCloseIntent: after oracle proof.verify");
+
+        publicInput.vaultState.minaVaultTypeState.priceNanoUsd =
+          privateInput.oracleBlockDataProof.publicOutput.minaVaultTypeUpdate.priceNanoUsd;
+        publicInput.vaultState.minaVaultTypeState.globalAccumulativeInterestRateScaled =
+          privateInput.oracleBlockDataProof.publicOutput.minaVaultTypeUpdate.blockRateScaledUpdate;
+
+        publicInput.vaultState.suiVaultTypeState.priceNanoUsd =
+          privateInput.oracleBlockDataProof.publicOutput.suiVaultTypeUpdate.priceNanoUsd;
+        publicInput.vaultState.suiVaultTypeState.globalAccumulativeInterestRateScaled =
+          privateInput.oracleBlockDataProof.publicOutput.suiVaultTypeUpdate.blockRateScaledUpdate;
+
+        log("blockCloseIntent: updateBlockInfoState");
+        updateBlockInfoState(
+          privateInput.historicalStateMap as HistoricalBlockStateMap,
+          privateInput.oracleBlockDataProof.publicOutput.timestamp,
+          publicInput.blockInfoState,
+          previousStateHash,
+        );
+
+        return { publicOutput: publicInput };
+      },
+    },
+  },
 });
