@@ -19,18 +19,18 @@ import { MerkleRoot } from '../core/map/merkle-root.js';
 import { processNotesAndCreateMapUpdate } from './common/note-io-helper.js';
 import { getRoot } from '../core/map/merkle-root.js';
 
-export class BridgeIntentPreconditions extends Struct({
+export class BridgeOutIntentPreconditions extends Struct({
    noteSnapshotBlockNumber: UInt64,
    noteSnapshotBlockHash: Field,
    bridgeMapRoot: MerkleRoot<BridgeMap>,
 }) {}
 
-export class BridgeIntentOutput extends Struct({
+export class BridgeOutIntentOutput extends Struct({
   zkusdMapUpdate: ZkusdMapUpdate, // spending notes
   bridgeIntentUpdate: BridgeSendIntentUpdate,
 }) {}
 
-export class BridgeIntentPrivateInput extends Struct({
+export class BridgeOutIntentPrivateInput extends Struct({
   bridgeConfig: BridgeConfig,
   bridgeMap: BridgeMap,
   zkusdMap: ZkUsdMap,
@@ -49,15 +49,15 @@ export const BridgeIntentKey = Field.from('421902410912840918213124091811240') /
 
 export const BridgeIntent = ZkProgram({
   name: 'BridgeIntent',
-  publicInput: BridgeIntentPreconditions,
-  publicOutput: BridgeIntentOutput,
+  publicInput: BridgeOutIntentPreconditions,
+  publicOutput: BridgeOutIntentOutput,
   methods: {
     bridge: {
-      privateInputs: [BridgeIntentPrivateInput],
+      privateInputs: [BridgeOutIntentPrivateInput],
       async method(
-        publicInput: BridgeIntentPreconditions,
-        privateInput: BridgeIntentPrivateInput & { zkusdMap: ZkUsdMap, bridgeMap: BridgeMap }
-      ): Promise<{ publicOutput: BridgeIntentOutput }> {
+        publicInput: BridgeOutIntentPreconditions,
+        privateInput: BridgeOutIntentPrivateInput & { zkusdMap: ZkUsdMap, bridgeMap: BridgeMap }
+      ): Promise<{ publicOutput: BridgeOutIntentOutput }> {
        const {
           inputNotes,
           outputNote,
@@ -117,4 +117,4 @@ export const BridgeIntent = ZkProgram({
   },
 });
 
-export class BridgeIntentProof extends ZkProgram.Proof(BridgeIntent) {}
+export class BridgeOutIntentProof extends ZkProgram.Proof(BridgeIntent) {}

@@ -25,7 +25,7 @@ export class Timestamp extends Struct({
         this.timestampMs.assertGreaterThanOrEqual(other.timestampMs);
     }
 
-    isGreaterBy(other: Timestamp, milliseconds: UInt64): Bool {
+    isGreaterThanBy(other: Timestamp, milliseconds: UInt64): Bool {
         return this.timestampMs.greaterThanOrEqual(other.timestampMs.add(milliseconds));
     }
 

@@ -1,5 +1,6 @@
 import {
   Field,
+  Poseidon,
   PrivateKey,
   PublicKey,
   Signature,
@@ -32,6 +33,7 @@ export function generateCreateVaultIntentInputs(params: {
       collateralType: params.type,
       ownerSignature: signature,
       ownerPublicKey: params.privateKey.toPublicKey(),
+      secretMemo: Field.random(),
     }),
   });
 }
@@ -42,12 +44,14 @@ export class CreateVaultIntentInput extends Struct({
 
 export class CreateVaultIntentOutput extends Struct({
     update: CreateVaultIntentUpdate,
+    inclusionHash: Field,
 }) {}
 
 export class CreateVaultIntentPrivateInput extends Struct({
   collateralType: CollateralType,
   ownerSignature: Signature,
   ownerPublicKey: PublicKey,
+  secretMemo: Field,
 }) {}
 
 // todo: make it better?
@@ -78,12 +82,26 @@ export const CreateVaultIntent = ZkProgram({
         // vault key (hiding public key)
         const vaultAddress: VaultAddress = VaultAddress.fromPublicKey(ownerPublicKey, collateralType);
 
+        // this can be used in an outside program to prove that:
+        // 0. this particular intent was included
+        // 1. the vault exists
+        // 2. one owns the private key that created the vault
+        // 3. one knows the secret memo
+        const inclusionProof: Field[] = [
+          CreateVaultIntentKey,
+          collateralType.value.value,
+          ...ownerPublicKey.toFields(),
+          privateInput.secretMemo,
+        ];
+        const inclusionHash = Poseidon.hash(inclusionProof);
+
         return {
           publicOutput: new CreateVaultIntentOutput({
             update: new CreateVaultIntentUpdate({
               vaultAddress: vaultAddress,
               collateralType: collateralType,
             }),
+            inclusionHash: inclusionHash,
           }),
         };
       },

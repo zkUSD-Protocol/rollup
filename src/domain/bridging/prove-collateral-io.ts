@@ -30,8 +30,7 @@ export const ProveCollateralIO = ZkProgram({
     name: 'ProveCollateralIO',
     publicInput: CollateralIOProofInput,
     publicOutput: CollateralIOProofOutput,
-    methods: {
-        dummy: {
+    methods: { dummy: {
             privateInputs: [DummyDepositProofPrivateInput],
             async method(
                 publicInput: CollateralIOProofInput,

@@ -13,43 +13,70 @@ import yaml from 'js-yaml';
 // ─────────────────────────────────────────────────────────────────────────────
 import { GovernanceAction1Intent }   from './intents/governance/action1.js';
 import { GovernanceAction2Intent }   from './intents/governance/action2.js';
-import { ZkusdRollup }               from './rollup.js';
+// import { ZkusdRollup }               from './rollup2.js';
+import { CreateVaultComputation }    from './computation/create-vault.js';
+import { BlockCloseComputation }     from './computation/close-block.js';
+import { DepositCollateralComputation }     from './computation/deposit-collateral.js';
+import { RedeemCollateralComputation }     from './computation/redeem-collateral.js';
+import { BridgeOutComputation }     from './computation/bridge-out.js';
+import { BridgeInComputation }     from './computation/bridge-in.js';
+import { BurnComputation }     from './computation/burn.js';
+import { MintComputation }     from './computation/mint.js';
+import { LiquidateComputation }     from './computation/liquidate.js';
+import { TransferComputation }     from './computation/transfer.js';
+import { GovCreateProposalComputation }     from './computation/gov-create-proposal.js';
+import { GovVetoProposalComputation }     from './computation/gov-veto-proposal.js';
+import { GovExecuteUpdateComputation }     from './computation/gov-execute-update.js';
 import { OracleBlockDataProgram }    from './intents/block-close-intent.js';
 import { GovActionIntent }           from './intents/governance/wrapper.js';
-import { BridgeIntent }              from './intents/bridge.js';
+import { BridgeIntent }              from './intents/bridge-out.js';
 import { CreateVaultIntent }         from './intents/create-vault.js';
 import { DepositIntent }             from './intents/deposit.js';
 import { MintIntent }                from './intents/mint.js';
 import { BurnIntent }                from './intents/burn.js';
 import { LiquidateIntent }           from './intents/liquidate.js';
 import { RedeemIntent }              from './intents/redeem.js';
-import { BridgeInIntent }            from './intents/bridge-back.js';
+import { BridgeInIntent }            from './intents/bridge-in.js';
 import { ZkusdBridgeState }          from './prove/observer/zkusd-bridge-state.js';
 import { TransferIntent }            from './intents/transfer.js';
 import { ProveCollateralIO }         from './domain/bridging/prove-collateral-io.js';
 import { Cache } from 'o1js';
 import console from 'node:console';
+import { FizkRollup } from './rollup3.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // List of programs to compile (same identifiers & order as before)
 // ─────────────────────────────────────────────────────────────────────────────
 const PROGRAMS = [
-  { name: 'ObserverPriceProof',          program: OracleBlockDataProgram },
-  { name: 'ObserverBridgeStateProof',    program: ZkusdBridgeState },
-  { name: 'GovernanceAction1Intent',     program: GovernanceAction1Intent },
-  { name: 'GovernanceAction2Intent',     program: GovernanceAction2Intent },
-  { name: 'CollateralIOProof',           program: ProveCollateralIO },
-  { name: 'GovActionIntent',             program: GovActionIntent },
-  { name: 'BridgeIntent',                program: BridgeIntent },
-  { name: 'BridgeBackIntent',            program: BridgeInIntent },
-  { name: 'CreateVaultIntent',           program: CreateVaultIntent },
-  { name: 'TransferIntent',              program: TransferIntent },
-  { name: 'DepositIntent',               program: DepositIntent },
-  { name: 'RedeemIntent',                program: RedeemIntent },
-  { name: 'MintIntent',                  program: MintIntent },
-  { name: 'BurnIntent',                  program: BurnIntent },
-  { name: 'LiquidateIntent',             program: LiquidateIntent },
-  { name: 'ZkusdRollup',                 program: ZkusdRollup },
+  // { name: 'BurnIntent',                  program: BurnIntent, lazy: true },
+  // { name: 'BurnComputation',       program: BurnComputation, lazy: true },
+  // { name: 'ObserverPriceProof',          program: OracleBlockDataProgram, lazy: true },
+  // { name: 'ObserverBridgeStateProof',    program: ZkusdBridgeState, lazy: true },
+  // { name: 'GovernanceAction1Intent',     program: GovernanceAction1Intent, lazy: true },
+  // { name: 'GovernanceAction2Intent',     program: GovernanceAction2Intent, lazy: true },
+  // { name: 'CollateralIOProof',           program: ProveCollateralIO, lazy: true },
+  // { name: 'GovActionIntent',             program: GovActionIntent, lazy: true },
+  // { name: 'BridgeIntent',                program: BridgeIntent, lazy: true },
+  // { name: 'BridgeBackIntent',            program: BridgeInIntent, lazy: true },
+  // { name: 'CreateVaultIntent',           program: CreateVaultIntent, lazy: true },
+  // { name: 'TransferIntent',              program: TransferIntent, lazy: true },
+  // { name: 'DepositIntent',               program: DepositIntent, lazy: true },
+  // { name: 'RedeemIntent',                program: RedeemIntent, lazy: true },
+  // { name: 'MintIntent',                  program: MintIntent, lazy: true },
+  // { name: 'LiquidateIntent',             program: LiquidateIntent, lazy: true },
+  // { name: 'CreateVaultComputation',      program: CreateVaultComputation, lazy: true },
+  // { name: 'BlockCloseComputation',       program: BlockCloseComputation, lazy: true },
+  // { name: 'DepositCollateralComputation',       program: DepositCollateralComputation, lazy: true },
+  // { name: 'RedeemCollateralComputation',       program: RedeemCollateralComputation, lazy: true },
+  // { name: 'BridgeOutComputation',       program: BridgeOutComputation, lazy: true },
+  // { name: 'BridgeInComputation',       program: BridgeInComputation, lazy: true },
+  // { name: 'MintComputation',       program: MintComputation, lazy: true },
+  // { name: 'LiquidateComputation',       program: LiquidateComputation, lazy: true },
+  // { name: 'TransferComputation',       program: TransferComputation, lazy: true },
+  // { name: 'GovCreateProposalComputation',       program: GovCreateProposalComputation, lazy: true },
+  // { name: 'GovVetoProposalComputation',       program: GovVetoProposalComputation, lazy: true },
+  // { name: 'GovExecuteUpdateComputation',       program: GovExecuteUpdateComputation, lazy: true },
+  { name: 'FizkRollup',                 program: FizkRollup, lazy: false },
 ] as const;
 
 type ProgEntry = (typeof PROGRAMS)[number];
@@ -85,18 +112,18 @@ function getMethodNames(program: any): string[] {
 // ─────────────────────────────────────────────────────────────────────────────
 // Compile + analyze one program, returning its stats (uses analyzeSingleMethod)
 // ─────────────────────────────────────────────────────────────────────────────
-async function compileOne({ name, program }: ProgEntry) {
+async function compileOne({ name, program, lazy }: ProgEntry) {
   console.log(`\n⚙️  Compiling ${name}…`);
 
   const t0 = performance.now();
   // cache: false ⇒ run a full compile even if previous artefacts exist
-  // await program.compile({ cache: Cache.None });
+  await program.compile({ cache: Cache.None });
 
   
-  await Promise.all([
-    program.compile(),
-    // every 10 sec use console.log(process.memoryUsage());
-  ])
+  // await Promise.all([
+  //   program.compile({proofsEnabled: lazy}),
+  //   // every 10 sec use console.log(process.memoryUsage());
+  // ])
   const compileMs = performance.now() - t0;
 
   let methods: Record<string, { constraints: any }> = {};
@@ -132,7 +159,6 @@ async function compileOne({ name, program }: ProgEntry) {
 // Main driver
 // ─────────────────────────────────────────────────────────────────────────────
 async function main() {
-  setInterval(() => console.log(process.memoryUsage()), 5000);
   const report: Record<string, any> = {
     date: new Date().toISOString(),
     environment: {

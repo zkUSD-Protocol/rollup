@@ -109,5 +109,5 @@ export const LiquidateIntent = ZkProgram({
   },
 });
 
-export const LiquidateIntentProof = ZkProgram.Proof(LiquidateIntent);
+export class LiquidateIntentProof extends ZkProgram.Proof(LiquidateIntent) {}
     
