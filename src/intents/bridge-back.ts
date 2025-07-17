@@ -17,37 +17,37 @@ import { MerkleRoot } from '../core/map/merkle-root.js';
 import { ObserverMap } from '../domain/enclave/observer-map.js';
 import { ObserverBridgeStateAttestationProof } from '../prove/observer/zkusd-bridge-state.js';
 
-export class BridgeIntentPreconditions extends Struct({
+export class BridgeInIntentPreconditions extends Struct({
   observerMapRoot: MerkleRoot<ObserverMap>,
-  totalAmountBridgedBack: UInt64, // prevents replay attacks
+  totalAmountBridgedIn: UInt64, // prevents replay attacks
 }) {}
 
-export class BridgeIntentOutput extends Struct({
+export class BridgeInIntentOutput extends Struct({
   zkusdMapUpdate: ZkusdMapUpdate, // minting notes
   bridgeIntentUpdate: BridgeBackIntentUpdate,
   observersSignedCount: UInt32,
 }) {}
 
-export class BridgeIntentPrivateInput extends Struct({
+export class BridgeInIntentPrivateInput extends Struct({
   bridgeStateProof: ObserverBridgeStateAttestationProof,
   outputNote: Note,
   ownerPublicKey: PublicKey,
   ownerSignature: Signature,
 }) {}
 
-export const BridgeBackIntentKey = Field.from('4219234295151564109128409182131283492119874256124091811240') // TODO replace with something more structured
+export const BridgeInIntentKey = Field.from('4219234295151564109128409182131283492119874256124091811240') // TODO replace with something more structured
 
-export const BridgeBackIntent = ZkProgram({
-  name: 'BridgeBackIntent',
-  publicInput: BridgeIntentPreconditions,
-  publicOutput: BridgeIntentOutput,
+export const BridgeInIntent = ZkProgram({
+  name: 'BridgeInIntent',
+  publicInput: BridgeInIntentPreconditions,
+  publicOutput: BridgeInIntentOutput,
   methods: {
     bridge: {
-      privateInputs: [BridgeIntentPrivateInput],
+      privateInputs: [BridgeInIntentPrivateInput],
       async method(
-        publicInput: BridgeIntentPreconditions,
-        privateInput: BridgeIntentPrivateInput & { zkusdMap: ZkUsdMap, bridgeMap: BridgeMap }
-      ): Promise<{ publicOutput: BridgeIntentOutput }> {
+        publicInput: BridgeInIntentPreconditions,
+        privateInput: BridgeInIntentPrivateInput & { zkusdMap: ZkUsdMap, bridgeMap: BridgeMap }
+      ): Promise<{ publicOutput: BridgeInIntentOutput }> {
        const {
           bridgeStateProof,
           outputNote,
@@ -63,7 +63,7 @@ export const BridgeBackIntent = ZkProgram({
         const mintAmount = outputNote.amount;
 
         //Verify the owner signature
-        const message = [BridgeBackIntentKey, bridgedAddress.key, publicInput.totalAmountBridgedBack.value, mintAmount.value];
+        const message = [BridgeInIntentKey, bridgedAddress.key, publicInput.totalAmountBridgedIn.value, mintAmount.value];
         ownerSignature.verify(ownerPublicKey, message);
 
         const outputNoteCommitments = OutputNoteCommitments.empty();
@@ -88,4 +88,4 @@ export const BridgeBackIntent = ZkProgram({
   },
 });
 
-export class BridgeBackIntentProof extends ZkProgram.Proof(BridgeBackIntent) {}
+export class BridgeInIntentProof extends ZkProgram.Proof(BridgeInIntent) {}

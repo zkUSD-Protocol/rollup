@@ -6,14 +6,14 @@ import { CollateralIoMap } from "../bridging/collateral-io-map.js";
 
 export class ZkUsdVaults extends Struct({
   vaultMapRoot: MerkleRoot<VaultMap>,
-  ioMapRoot: MerkleRoot<CollateralIoMap>,
+  collateralIoMapRoot: MerkleRoot<CollateralIoMap>,
   minaVaultTypeState: VaultTypeData,
   suiVaultTypeState: VaultTypeData,
 }) {
     toFields(): Field [] {
         return [
             this.vaultMapRoot.root,
-            this.ioMapRoot.root,
+            this.collateralIoMapRoot.root,
             ...this.minaVaultTypeState.toFields(),
             ...this.suiVaultTypeState.toFields(),
         ];

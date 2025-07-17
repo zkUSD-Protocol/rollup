@@ -4,9 +4,9 @@ import { PrunedMapBase } from "../../core/map/pruned-map-base.js";
 import { SerializableMapData } from "../../core/map/serializable-indexed-map.js";
 import { getRoot, MerkleRoot } from "../../core/map/merkle-root.js";
 import { ZkUsdVaults } from "./zkusd-vaults.js";
-import { CreateVaultIntentUpdate, DebtRepaymentIntentUpdate, DepositIntentUpdate, MintIntentUpdate, RedeemIntentUpdate } from "./vault-update.js";
+import { CreateVaultIntentUpdate, DebtRepaymentUpdate, DepositIntentUpdate, MintIntentUpdate, RedeemCollateralUpdate } from "./vault-update.js";
 import { Vault, VaultParameters, VaultTypeData } from "./vault.js";
-import { Bool, Field, Provable, Struct, UInt8 } from "o1js";
+import { Bool, Field, Provable, Struct, UInt64, UInt8 } from "o1js";
 import { CollateralType } from "./vault-collateral-type.js";
 import { VaultAddress } from "./vault-address.js";
 
@@ -131,7 +131,7 @@ static verifyCreateVaultUpdate(map: VaultMap, state: ZkUsdVaults, update: Create
   });
 }
 
-static verifyRedeemCollateralUpdate(map: VaultMap, state: ZkUsdVaults,  update: RedeemIntentUpdate): VerifiedMapUpdate {
+static verifyRedeemCollateralUpdate(map: VaultMap, state: ZkUsdVaults,  update: RedeemCollateralUpdate): VerifiedMapUpdate {
   const { vaultAddress, collateralDelta, collateralType } = update;
 
   // map is up-to-date wrt to the state
@@ -173,7 +173,34 @@ static verifyDepositCollateralUpdate(map: VaultMap, state: ZkUsdVaults,  update:
   });
 }
 
-static verifyRepayDebtUpdate(map: VaultMap, state: ZkUsdVaults,  update: DebtRepaymentIntentUpdate): VerifiedMapUpdate {
+static verifyLiquidationUpdate(map: VaultMap, state: ZkUsdVaults,  update: DebtRepaymentUpdate): { verifiedUpdate: VerifiedMapUpdate, liquidateeCollateralDelta: UInt64, liquidatorCollateralDelta: UInt64 } {
+  const { vaultAddress, debtDelta, collateralType } = update;
+
+  // map is up-to-date wrt to the state
+  getRoot(map).assertEquals(state.vaultMapRoot);
+
+  // assert vaultAddress exists
+  map.assertIncluded(vaultAddress.key);
+
+  // recreate the vault from the state
+  const vaultTypeData = VaultMap.getVaultTypeData(state, collateralType);
+  const vault = VaultMap.getVaultFromVaultTypeData(map, vaultTypeData, vaultAddress);
+
+  const { liquidateeCollateralDelta, liquidatorCollateralDelta } = vault.liquidate(debtDelta);
+
+  vault.repayDebt(debtDelta, vaultTypeData.globalAccumulativeInterestRateScaled);
+  
+  return {
+    verifiedUpdate: new VerifiedMapUpdate({
+      vaultAddress: vaultAddress,
+      newPackedState: Vault(vaultTypeData.parameters).pack(Vault(vaultTypeData.parameters).empty()),
+    }),
+    liquidateeCollateralDelta: liquidateeCollateralDelta,
+    liquidatorCollateralDelta: liquidatorCollateralDelta,
+  };
+}
+
+static verifyRepayDebtUpdate(map: VaultMap, state: ZkUsdVaults,  update: DebtRepaymentUpdate): VerifiedMapUpdate {
   const { vaultAddress, debtDelta, collateralType } = update;
 
   // map is up-to-date wrt to the state
@@ -192,6 +219,15 @@ static verifyRepayDebtUpdate(map: VaultMap, state: ZkUsdVaults,  update: DebtRep
     vaultAddress: vaultAddress,
     newPackedState: Vault(vaultTypeData.parameters).pack(vault),
   });
+}
+
+static getUpdateVault(map: VaultMap, state: ZkUsdVaults, address: VaultAddress, collateralType: CollateralType) {
+  
+  // recreate the vault from the state
+  const vaultTypeData = VaultMap.getVaultTypeData(state, collateralType);
+  const vault = VaultMap.getVaultFromVaultTypeData(map, vaultTypeData, address);
+
+  return vault;
 }
 
 static verifyMintUpdate(map: VaultMap, state: ZkUsdVaults,  update: MintIntentUpdate): VerifiedMapUpdate {

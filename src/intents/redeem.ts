@@ -7,7 +7,7 @@ import {
   ZkProgram,
 } from 'o1js';
 import { VaultAddress } from '../domain/vault/vault-address.js';
-import { RedeemIntentUpdate } from '../domain/vault/vault-update.js';
+import { RedeemCollateralUpdate } from '../domain/vault/vault-update.js';
 import { CollateralType } from '../domain/vault/vault-collateral-type.js';
 import { VaultParameters } from '../domain/vault/vault.js';
 
@@ -16,7 +16,7 @@ export class RedeemIntentPreconditions extends Struct({
 }) {}
 
 export class RedeemIntentOutput extends Struct({
-  update: RedeemIntentUpdate,
+  update: RedeemCollateralUpdate,
 }) {}
 
 export class RedeemIntentPrivateInput extends Struct({
@@ -54,7 +54,7 @@ export const RedeemIntent = ZkProgram({
 
         return {
           publicOutput: new RedeemIntentOutput({
-            update: new RedeemIntentUpdate({vaultAddress, collateralDelta: amount, collateralType: privateInput.collateralType}),
+            update: new RedeemCollateralUpdate({vaultAddress, collateralDelta: amount, collateralType: privateInput.collateralType}),
           }),
         };
       },

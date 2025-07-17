@@ -1,104 +1,249 @@
-date: '2025-07-14T16:45:24.235Z'
+date: '2025-07-17T08:59:14.854Z'
 environment:
   node: v23.9.0
   platform: linux
 programs:
   ObserverPriceProof:
-    compile_time_ms: 0
+    compile_time_ms: 1554.72
     methods:
       dummy:
-        constraints: 0
+        Total rows: 0
   ObserverBridgeStateProof:
-    compile_time_ms: 0
+    compile_time_ms: 11682.48
     methods:
       proveBridgeAccumulators:
-        constraints: 5801
+        Total rows: 5801
+        Generic: 1149
+        EndoMulScalar: 188
+        RangeCheck0: 252
+        RangeCheck1: 126
+        Zero: 1269
+        ForeignFieldAdd: 72
+        Poseidon: 1782
+        CompleteAdd: 45
+        VarBaseMul: 918
   GovernanceAction1Intent:
-    compile_time_ms: 0
+    compile_time_ms: 531.57
     methods:
       dummy:
-        constraints: 0
+        Total rows: 0
   GovernanceAction2Intent:
-    compile_time_ms: 0
+    compile_time_ms: 512.73
     methods:
       dummy:
-        constraints: 0
+        Total rows: 0
   CollateralIOProof:
-    compile_time_ms: 0
+    compile_time_ms: 538.39
     methods:
       dummy:
-        constraints: 12
+        Total rows: 12
+        Generic: 2
+        EndoMulScalar: 10
   GovActionIntent:
-    compile_time_ms: 0
+    compile_time_ms: 3567.57
     methods:
       action1:
-        constraints: 0
+        Total rows: 0
       createProposal:
-        constraints: 0
+        Total rows: 0
   BridgeIntent:
-    compile_time_ms: 0
+    compile_time_ms: 6196.41
     methods:
       bridge:
-        constraints: 8375
+        Total rows: 8375
+        Generic: 1352
+        EndoMulScalar: 154
+        Poseidon: 5676
+        Zero: 795
+        RangeCheck0: 100
+        RangeCheck1: 50
+        ForeignFieldAdd: 34
+        CompleteAdd: 10
+        VarBaseMul: 204
   BridgeBackIntent:
-    compile_time_ms: 0
+    compile_time_ms: 14558.33
     methods:
       bridge:
-        constraints: 458
+        Total rows: 458
+        Generic: 67
+        EndoMulScalar: 20
+        Poseidon: 121
+        Zero: 122
+        RangeCheck0: 12
+        RangeCheck1: 6
+        ForeignFieldAdd: 3
+        CompleteAdd: 5
+        VarBaseMul: 102
   CreateVaultIntent:
-    compile_time_ms: 0
+    compile_time_ms: 669.66
     methods:
       createVault:
-        constraints: 363
+        Total rows: 363
+        Generic: 62
+        EndoMulScalar: 2
+        RangeCheck0: 12
+        RangeCheck1: 6
+        Zero: 116
+        ForeignFieldAdd: 3
+        Poseidon: 55
+        CompleteAdd: 5
+        VarBaseMul: 102
   TransferIntent:
-    compile_time_ms: 0
+    compile_time_ms: 1900.23
     methods:
       transfer:
-        constraints: 7870
+        Total rows: 7870
+        Generic: 1225
+        EndoMulScalar: 148
+        Poseidon: 5544
+        Zero: 675
+        RangeCheck0: 92
+        RangeCheck1: 46
+        ForeignFieldAdd: 33
+        CompleteAdd: 5
+        VarBaseMul: 102
   DepositIntent:
-    compile_time_ms: 0
+    compile_time_ms: 2087.29
     methods:
       deposit:
-        constraints: 404
+        Total rows: 404
+        Generic: 65
+        EndoMulScalar: 28
+        Poseidon: 66
+        Zero: 117
+        RangeCheck0: 12
+        RangeCheck1: 6
+        ForeignFieldAdd: 3
+        CompleteAdd: 5
+        VarBaseMul: 102
   RedeemIntent:
-    compile_time_ms: 0
+    compile_time_ms: 668.86
     methods:
       redeem:
-        constraints: 381
+        Total rows: 381
+        Generic: 64
+        EndoMulScalar: 18
+        RangeCheck0: 12
+        RangeCheck1: 6
+        Zero: 116
+        ForeignFieldAdd: 3
+        Poseidon: 55
+        CompleteAdd: 5
+        VarBaseMul: 102
   MintIntent:
-    compile_time_ms: 0
+    compile_time_ms: 790.33
     methods:
       mint:
-        constraints: 960
+        Total rows: 960
+        Generic: 99
+        EndoMulScalar: 118
+        Poseidon: 462
+        Zero: 153
+        RangeCheck0: 12
+        RangeCheck1: 6
+        ForeignFieldAdd: 3
+        CompleteAdd: 5
+        VarBaseMul: 102
   BurnIntent:
-    compile_time_ms: 0
+    compile_time_ms: 6450.14
     methods:
       burn:
-        constraints: 8171
+        Total rows: 8171
+        Generic: 1280
+        EndoMulScalar: 166
+        Poseidon: 5544
+        Zero: 783
+        RangeCheck0: 100
+        RangeCheck1: 50
+        ForeignFieldAdd: 34
+        CompleteAdd: 10
+        VarBaseMul: 204
+  LiquidateIntent:
+    compile_time_ms: 1795.88
+    methods:
+      liquidate:
+        Total rows: 7023
+        Generic: 1082
+        EndoMulScalar: 158
+        Poseidon: 4928
+        Zero: 607
+        RangeCheck0: 76
+        RangeCheck1: 38
+        ForeignFieldAdd: 27
+        CompleteAdd: 5
+        VarBaseMul: 102
   ZkusdRollup:
-    compile_time_ms: 0
+    compile_time_ms: 111407.27
     methods:
       blockCloseIntent:
-        constraints: 3566
-      bridge:
-        constraints: 26340
-      bridgeBack:
-        constraints: 27762
+        Total rows: 3566
+        Generic: 532
+        EndoMulScalar: 136
+        Poseidon: 2618
+        Zero: 250
+        RangeCheck0: 16
+        RangeCheck1: 8
+        ForeignFieldAdd: 6
       burn:
-        constraints: 22265
-      createVault:
-        constraints: 5582
-      depositCollateral:
-        constraints: 5304
+        Total rows: 22265
+        Generic: 4164
+        EndoMulScalar: 142
+        Poseidon: 16082
+        Zero: 1582
+        RangeCheck0: 160
+        RangeCheck1: 80
+        ForeignFieldAdd: 55
       govCreateProposal:
-        constraints: 5209
+        Total rows: 5209
+        Generic: 729
+        EndoMulScalar: 346
+        Poseidon: 3751
+        Zero: 353
+        RangeCheck0: 16
+        RangeCheck1: 8
+        ForeignFieldAdd: 6
       govExecuteUpdateIntent:
-        constraints: 3152
+        Total rows: 3152
+        Generic: 474
+        EndoMulScalar: 242
+        Poseidon: 2233
+        Zero: 203
       govVetoProposal:
-        constraints: 4697
+        Total rows: 4697
+        Generic: 607
+        EndoMulScalar: 346
+        Poseidon: 3432
+        Zero: 312
+      liquidate:
+        Total rows: 25554
+        Generic: 6388
+        EndoMulScalar: 150
+        Poseidon: 17127
+        Zero: 1653
+        RangeCheck0: 128
+        RangeCheck1: 64
+        ForeignFieldAdd: 44
       mint:
-        constraints: 22253
+        Total rows: 22253
+        Generic: 4160
+        EndoMulScalar: 134
+        Poseidon: 16082
+        Zero: 1582
+        RangeCheck0: 160
+        RangeCheck1: 80
+        ForeignFieldAdd: 55
       redeemCollateral:
-        constraints: 5291
+        Total rows: 5291
+        Generic: 2241
+        EndoMulScalar: 134
+        Poseidon: 2673
+        Zero: 243
       transfer:
-        constraints: 20492
+        Total rows: 20492
+        Generic: 3429
+        EndoMulScalar: 112
+        Poseidon: 15158
+        Zero: 1498
+        RangeCheck0: 160
+        RangeCheck1: 80
+        ForeignFieldAdd: 55

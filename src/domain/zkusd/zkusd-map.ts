@@ -8,6 +8,7 @@ import { getRoot, MerkleRoot } from '../../core/map/merkle-root.js';
 import { ZkUsdState } from './zkusd-state.js';
 import { ZkUsdUpdate } from './zkusd-update.js';
 import { MAX_INPUT_NOTE_COUNT, MAX_OUTPUT_NOTE_COUNT, Nullifier } from './zkusd-note.js';
+import { ZkusdMapUpdateSingleOutput } from '../../state-updates/zkusd-map-update.js';
 
 const ZKUSD_MAP_HEIGHT = 52; // 4,503,599,627,370,496 - 4.5 quadrillion
 
@@ -35,6 +36,32 @@ export class ZkUsdMap extends ZkUsdMapBase {
    */
   static fromSerialized(data: SerializableMapData): ZkUsdMap {
     return super.fromSerialized(data) as ZkUsdMap;
+  }
+  
+  static verifyAndUpdateSingleOutput(map: ZkUsdMap, state: ZkUsdState, update: ZkusdMapUpdateSingleOutput): MerkleRoot<ZkUsdMap> {
+    const { nullifiers, outputNoteCommitment } = update;
+    
+    // the map root should be the same as the zkusd live root
+    getRoot(map).assertEquals(state.zkUsdMapRoot);
+
+    for (let i = 0; i < MAX_INPUT_NOTE_COUNT; i++) {
+      const nullifier = nullifiers.nullifiers[i];
+      map.assertNotIncluded(nullifier.nullifier);
+      map.setIf(
+        nullifier.isDummy.not(),
+        nullifier.nullifier,
+        Nullifier.included()
+      );
+    }
+
+    map.assertNotIncluded(outputNoteCommitment.commitment);
+    map.setIf(
+      outputNoteCommitment.isDummy.not(),
+      outputNoteCommitment.commitment,
+            Nullifier.included()
+          );
+      
+      return getRoot(map);
   }
 
   static verifyAndUpdate(map: ZkUsdMap, state: ZkUsdState, update: ZkUsdUpdate): MerkleRoot<ZkUsdMap> {

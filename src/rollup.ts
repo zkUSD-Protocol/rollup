@@ -1,12 +1,6 @@
-// zkusd-rollup-with-logs.ts – same logic, now instrumented with lightweight logs
-// -----------------------------------------------------------------------------
-// Helper: cheap logger that works inside the circuit (does not add constraints)
-// -----------------------------------------------------------------------------
 import { Field, Poseidon, Provable, Struct, UInt64, ZkProgram } from "o1js";
+  
 
-function log(msg: string, v?: unknown) {
-console.warn(msg, v);
-}
 
 // --- domain & intent imports (unchanged) -------------------------------------
 import { FizkRollupState } from "./domain/rollup-state.js";
@@ -38,12 +32,17 @@ import { BridgeIntentProof } from "./intents/bridge.js";
 import { BridgeIoMap } from "./domain/bridging/bridge-io-map.js";
 import { BridgeMap } from "./domain/bridging/bridge-map.js";
 import { ObserverMap } from "./domain/enclave/observer-map.js";
-import { BridgeBackIntentProof } from "./intents/bridge-back.js";
+import { BridgeInIntentProof } from "./intents/bridge-back.js";
 import { getRoot } from "./core/map/merkle-root.js";
+import { LiquidateIntentProof } from "./intents/liquidate.js";
+import { RedeemCollateralUpdate } from "./domain/vault/vault-update.js";
 
 // -----------------------------------------------------------------------------
 // Utility helpers (untouched except logging replacements)
 // -----------------------------------------------------------------------------
+function log(msg: string, v?: unknown) {
+Provable.log(msg);
+}
 function getActualVaultParams(
   publicInput: FizkRollupState,
   collateralType: CollateralType,
@@ -182,13 +181,21 @@ export class BurnPrivateInput extends Struct({
 	vaultMap: VaultMap,
 	historicalBlockStateMap: HistoricalBlockStateMap,
 }) {}
+
+export class LiquidatePrivateInput extends Struct({
+	proof: LiquidateIntentProof,
+	zkusdMap: ZkUsdMap,
+	vaultMap: VaultMap,
+	collateralIoMap: CollateralIoMap,
+	historicalBlockStateMap: HistoricalBlockStateMap,
+}) {}
 export class MintPrivateInput extends Struct({
 	proof: MintIntentProof,
 	zkusdMap: ZkUsdMap,
 	vaultMap: VaultMap,
 	historicalBlockStateMap: HistoricalBlockStateMap,
 }) {}
-export class BridgePrivateInput extends Struct({
+export class BridgeOutPrivateInput extends Struct({
 	proof: BridgeIntentProof,
 	bridgeMap: BridgeMap,
 	zkusdMap: ZkUsdMap,
@@ -196,8 +203,8 @@ export class BridgePrivateInput extends Struct({
 	historicalBlockStateMap: HistoricalBlockStateMap,
 }) {}
 
-export class BridgeBackPrivateInput extends Struct({
-	proof: BridgeBackIntentProof,
+export class BridgeInPrivateInput extends Struct({
+	proof: BridgeInIntentProof,
 	observerMap: ObserverMap,
 	zkusdMap: ZkUsdMap,
 	bridgeIoMap: BridgeIoMap,
@@ -234,12 +241,12 @@ export const ZkusdRollup = ZkProgram({
         );
 
         const ioMap = privateInput.iomap;
-        getRoot(ioMap).assertEquals(publicInput.vaultState.ioMapRoot);
+        getRoot(ioMap).assertEquals(publicInput.vaultState.collateralIoMapRoot);
         ioMap.insert(
           privateInput.proof.publicOutput.update.vaultAddress.key,
           CollateralIOAccumulators.empty().pack(),
         );
-        publicInput.vaultState.ioMapRoot = getRoot(ioMap);
+        publicInput.vaultState.collateralIoMapRoot = getRoot(ioMap);
 
         log("createVault: updating VaultMap");
         const vaultMap = privateInput.vaultMap;
@@ -279,7 +286,7 @@ export const ZkusdRollup = ZkProgram({
         );
 
         const ioMap = privateInput.iomap;
-        getRoot(ioMap).assertEquals(publicInput.vaultState.ioMapRoot);
+        getRoot(ioMap).assertEquals(publicInput.vaultState.collateralIoMapRoot);
 
         log("depositCollateral: verify vault update");
         const verifiedVaultUpdate = VaultMap.verifyDepositCollateralUpdate(
@@ -290,7 +297,7 @@ export const ZkusdRollup = ZkProgram({
 
         log("depositCollateral: verify & update io map");
         const verifiedIoUpdate = CollateralIoMap.verifyDeposit(ioMap, update);
-        publicInput.vaultState.ioMapRoot = CollateralIoMap.verifiedUpdate(
+        publicInput.vaultState.collateralIoMapRoot = CollateralIoMap.verifiedUpdate(
           ioMap,
           verifiedIoUpdate,
         );
@@ -329,7 +336,7 @@ export const ZkusdRollup = ZkProgram({
         preconditions.vaultParameters.equals(actualVaultParams).assertTrue();
 
         const iomap = privateInput.iomap;
-        getRoot(iomap).assertEquals(publicInput.vaultState.ioMapRoot);
+        getRoot(iomap).assertEquals(publicInput.vaultState.collateralIoMapRoot);
 
         log("redeemCollateral: verify vault update");
         const verifiedVaultUpdate = VaultMap.verifyRedeemCollateralUpdate(
@@ -340,7 +347,7 @@ export const ZkusdRollup = ZkProgram({
 
         log("redeemCollateral: verify & update io map");
         const verifiedIoUpdate = CollateralIoMap.verifyWithdraw(iomap, update);
-        publicInput.vaultState.ioMapRoot = CollateralIoMap.verifiedUpdate(
+        publicInput.vaultState.collateralIoMapRoot = CollateralIoMap.verifiedUpdate(
           iomap,
           verifiedIoUpdate,
         );
@@ -355,26 +362,26 @@ export const ZkusdRollup = ZkProgram({
       },
     },
 
-    bridge: {
-      privateInputs: [BridgePrivateInput],
+    bridgeOut: {
+      privateInputs: [BridgeOutPrivateInput],
       async method(
         publicInput: FizkRollupState,
-        privateInput: BridgePrivateInput & {
+        privateInput: BridgeOutPrivateInput & {
           zkusdMap: ZkUsdMap;
           bridgeIoMap: BridgeIoMap;
           bridgeMap: BridgeMap;
           historicalBlockStateMap: HistoricalBlockStateMap;
         },
       ): Promise<{ publicOutput: FizkRollupState }> {
-        log("bridge: before proof.verify");
+        log("bridgeOut: before proof.verify");
         privateInput.proof.verify();
-        log("bridge: after proof.verify");
+        log("bridgeOut: after proof.verify");
 
         const preconditions = privateInput.proof.publicInput;
         getRoot(privateInput.historicalBlockStateMap).assertEquals(
           publicInput.blockInfoState.historicalStateMerkleRoot,
         );
-        log("bridge: historicalStateMap root", privateInput.historicalBlockStateMap.root);
+        log("bridgeOut: historicalStateMap root", privateInput.historicalBlockStateMap.root);
         privateInput.historicalBlockStateMap
           .get(preconditions.noteSnapshotBlockNumber.value)
           .assertEquals(preconditions.noteSnapshotBlockHash);
@@ -385,13 +392,13 @@ export const ZkusdRollup = ZkProgram({
           publicInput.zkUsdState.bridgeIoMapRoot,
         );
 
-        log("bridge: verify BridgeIoMap update");
+        log("bridgeOut: verify BridgeIoMap update");
         const verifiedIoMapUpdate = BridgeIoMap.verifyBridgeSendIntent(
           privateInput.bridgeIoMap,
           privateInput.proof.publicOutput.bridgeIntentUpdate,
         );
 
-        log("bridge: update ZkUsdMap");
+        log("bridgeOut: update ZkUsdMap");
         const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(
           privateInput.zkusdMap,
           publicInput.zkUsdState,
@@ -399,30 +406,31 @@ export const ZkusdRollup = ZkProgram({
         );
         publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
 
-        log("bridge: update BridgeIoMap root");
+        log("bridgeOut: update BridgeIoMap root");
         publicInput.zkUsdState.bridgeIoMapRoot = BridgeIoMap.verifiedSet(
           privateInput.bridgeIoMap,
           verifiedIoMapUpdate,
         );
 
+        log("bridgeOut: end");
+
         return { publicOutput: publicInput };
       },
     },
 
-    bridgeBack: {
-      privateInputs: [BridgeBackPrivateInput],
+    bridgeIn: {
+      privateInputs: [BridgeInPrivateInput],
       async method(
         publicInput: FizkRollupState,
-        privateInput: BridgeBackPrivateInput & {
+        privateInput: BridgeInPrivateInput & {
           zkusdMap: ZkUsdMap;
           bridgeIoMap: BridgeIoMap;
           observerMap: ObserverMap;
-          historicalBlockStateMap: HistoricalBlockStateMap;
         },
       ): Promise<{ publicOutput: FizkRollupState }> {
-        log("bridgeBack: before proof.verify");
+        log("bridgeIn: before proof.verify");
         privateInput.proof.verify();
-        log("bridgeBack: after proof.verify");
+        log("bridgeIn: after proof.verify");
 
         privateInput.proof.publicOutput.observersSignedCount.assertGreaterThanOrEqual(
           publicInput.governanceState.observersMultiSigTreshold,
@@ -438,26 +446,28 @@ export const ZkusdRollup = ZkProgram({
           publicInput.zkUsdState.bridgeIoMapRoot,
         );
 
+        log("bridgeIn: verify observerKeysMerkleRoot");
         const preconditions = privateInput.proof.publicInput;
         publicInput.zkUsdEnclavesState.observerKeysMerkleRoot.assertEquals(
           preconditions.observerMapRoot,
         );
 
+        log("bridgeIn: verify BridgeIoMap accumulators");
         const actualAccumulators = BridgeIoMap.getAccumulators(
           privateInput.bridgeIoMap,
           bridgedAddress,
         );
         actualAccumulators.totalMinted.assertEquals(
-          preconditions.totalAmountBridgedBack,
+          preconditions.totalAmountBridgedIn,
         );
 
-        log("bridgeBack: verify BridgeIoMap receive update");
+        log("bridgeIn: verify BridgeIoMap receive update");
         const verifiedIoMapUpdate = BridgeIoMap.verifyBridgeReceiveIntent(
           privateInput.bridgeIoMap,
           privateInput.proof.publicOutput.bridgeIntentUpdate,
         );
 
-        log("bridgeBack: update ZkUsdMap");
+        log("bridgeIn: update ZkUsdMap");
         const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(
           privateInput.zkusdMap,
           publicInput.zkUsdState,
@@ -465,11 +475,13 @@ export const ZkusdRollup = ZkProgram({
         );
         publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
 
-        log("bridgeBack: update BridgeIoMap root");
+        log("bridgeIn: update BridgeIoMap root");
         publicInput.zkUsdState.bridgeIoMapRoot = BridgeIoMap.verifiedSet(
           privateInput.bridgeIoMap,
           verifiedIoMapUpdate,
         );
+        
+        log("bridgeIn: end");
 
         return { publicOutput: publicInput };
       },
@@ -524,7 +536,106 @@ export const ZkusdRollup = ZkProgram({
           privateInput.vaultMap,
           verifiedVaultUpdate,
         );
+        log("burn: end");
 
+        return { publicOutput: publicInput };
+      },
+    },
+ 
+    liquidate: {
+      privateInputs: [LiquidatePrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: LiquidatePrivateInput & { zkusdMap: ZkUsdMap; vaultMap: VaultMap; collateralIoMap: CollateralIoMap },
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        log("liquidate: before proof.verify");
+        privateInput.proof.verify();
+        log("liquidate: after proof.verify");
+
+        const preconditions = privateInput.proof.publicInput;
+        const vaultUpdate = privateInput.proof.publicOutput.vaultDebtRepayment;
+        const actualVaultParams = getActualVaultParams(
+          publicInput,
+          vaultUpdate.collateralType,
+        );
+        preconditions.vaultParameters.equals(actualVaultParams).assertTrue();
+
+        getRoot(privateInput.historicalBlockStateMap).assertEquals(
+          publicInput.blockInfoState.historicalStateMerkleRoot,
+        );
+        log("liquidate: historicalBlockStateMap root", privateInput.historicalBlockStateMap.root);
+        privateInput.historicalBlockStateMap
+          .get(preconditions.noteSnapshotBlockNumber.value)
+          .assertEquals(preconditions.noteSnapshotBlockHash);
+        preconditions.noteSnapshotBlockNumber.assertLessThanOrEqual(
+          publicInput.blockInfoState.blockNumber,
+        );
+
+        // create iomap update based on the liquidation logic
+        log("liquidate: verify VaultMap liquidation update");
+        const { liquidateeCollateralDelta, liquidatorCollateralDelta, verifiedUpdate } = VaultMap.verifyLiquidationUpdate(
+          privateInput.vaultMap,
+          publicInput.vaultState,
+          vaultUpdate,
+        );
+        
+        // verify redeem collateral update
+        log("liquidate: verify CollateralIoMap liquidatee update");
+        const verifiedLiquidateeUpdate = CollateralIoMap.verifyWithdraw(
+          privateInput.collateralIoMap,
+          new RedeemCollateralUpdate({
+            vaultAddress: vaultUpdate.vaultAddress,
+            collateralDelta: liquidateeCollateralDelta,
+            collateralType: vaultUpdate.collateralType,
+          }),
+        );
+
+        // verify liquidator redeem collateral update
+        log("liquidate: verify CollateralIoMap liquidator update");
+        const verifiedLiquidatorUpdate = CollateralIoMap.verifyWithdraw(
+          privateInput.collateralIoMap,
+          new RedeemCollateralUpdate({
+            vaultAddress: privateInput.proof.publicOutput.liquidatorVaultAddress,
+            collateralDelta: liquidatorCollateralDelta,
+            collateralType: vaultUpdate.collateralType,
+          }),
+        );
+
+        log("liquidate: update ZkUsdMap root");
+        const newZkusdMapRoot = ZkUsdMap.verifyAndUpdateSingleOutput(
+          privateInput.zkusdMap,
+          publicInput.zkUsdState,
+          privateInput.proof.publicOutput.zkusdBurnUpdate,
+        );
+        publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
+
+        log("liquidate: update VaultMap root");
+        publicInput.vaultState.vaultMapRoot = VaultMap.verifiedUpdate(
+          privateInput.vaultMap,
+          verifiedUpdate,
+        );
+
+        // apply the rest of the updates
+        log("liquidate: update CollateralIoMap root");
+        publicInput.vaultState.vaultMapRoot = VaultMap.verifiedUpdate(
+          privateInput.vaultMap,
+          verifiedUpdate,
+        );
+
+        log("liquidate: update CollateralIoMap root");
+        publicInput.vaultState.collateralIoMapRoot = CollateralIoMap.verifiedUpdate(
+          privateInput.collateralIoMap,
+          verifiedLiquidateeUpdate,
+        );
+        // assert equal roots / TODO can be removed later
+        getRoot(privateInput.collateralIoMap).assertEquals(publicInput.vaultState.collateralIoMapRoot);
+
+        publicInput.vaultState.collateralIoMapRoot = CollateralIoMap.verifiedUpdate(
+          privateInput.collateralIoMap,
+          verifiedLiquidatorUpdate,
+        );
+
+        log("liquidate: end");
         return { publicOutput: publicInput };
       },
     },
@@ -572,7 +683,7 @@ export const ZkusdRollup = ZkProgram({
           .and(
             previousBlockStateHash.equals(
               privateInput.proof.publicInput.rollupStateHash,
-            ),
+            )
           );
 
         currentStateCondition.or(previousStateCondition).assertTrue();
@@ -831,6 +942,6 @@ export const ZkusdRollup = ZkProgram({
 
         return { publicOutput: publicInput };
       },
-    },
-  },
+    }, 
+   },
 });

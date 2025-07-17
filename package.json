@@ -62,7 +62,6 @@
     "express": "^4.21.2"
   },
   "dependencies": {
-    "o1js": "2.6.0",
     "@minatokens/token": "^0.16.16",
     "@mysten/sui": "^1.36.0",
     "@mysten/walrus": "^0.1.8",
@@ -70,7 +69,8 @@
     "better-sqlite3": "^11.10.0",
     "dotenv": "^16.6.1",
     "js-yaml": "^4.1.0",
-    "mina-signer": "^3.0.7"
+    "mina-signer": "^3.0.7",
+    "o1js": "2.4.0"
   },
   "module": "index.ts"
 }

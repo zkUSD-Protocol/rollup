@@ -7,7 +7,7 @@ import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
 import { getRoot, MerkleRoot } from '../../core/map/merkle-root.js';
 import { CollateralIOAccumulators } from './collateral-io-accumulators.js';
 import { VaultAddress } from '../vault/vault-address.js';
-import { DepositIntentUpdate, RedeemIntentUpdate } from '../vault/vault-update.js';
+import { DepositIntentUpdate, RedeemCollateralUpdate } from '../vault/vault-update.js';
 import { Field, Struct, UInt64 } from 'o1js';
 
 const IO_MAP_HEIGHT = 52; // 4,503,599,627,370,496 - 4.5 quadrillion
@@ -49,7 +49,7 @@ export class CollateralIoMap extends CollateralIoMapBase {
     return getRoot(map);
   }
 
-  static verifyWithdraw(map: CollateralIoMap, update: RedeemIntentUpdate): VerifiedAccumulatorsUpdate {
+  static verifyWithdraw(map: CollateralIoMap, update: RedeemCollateralUpdate): VerifiedAccumulatorsUpdate {
     const oldAccumulators = CollateralIoMap.getAccumulators(map, update.vaultAddress);
 
     return new VerifiedAccumulatorsUpdate({

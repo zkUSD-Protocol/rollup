@@ -8,7 +8,7 @@ import {
   ZkProgram,
 } from 'o1js';
 import { InputNotes, Note, OutputNotes } from '../domain/zkusd/zkusd-note.js';
-import { DebtRepaymentIntentUpdate } from '../domain/vault/vault-update.js';
+import { DebtRepaymentUpdate } from '../domain/vault/vault-update.js';
 import { VaultAddress } from '../domain/vault/vault-address.js';
 import { VaultParameters } from '../domain/vault/vault.js';
 import { ZkusdMapUpdate } from '../state-updates/zkusd-map-update.js';
@@ -29,7 +29,7 @@ export class BurnIntentPreconditions extends Struct({
 }) {}
 
 export class BurnIntentOutput extends Struct({
-  vaultUpdate:    DebtRepaymentIntentUpdate,
+  vaultUpdate:    DebtRepaymentUpdate,
   zkusdMapUpdate: ZkusdMapUpdate,
 }) {}
 
@@ -123,7 +123,7 @@ export const BurnIntent = ZkProgram({
         valueOut.assertEquals(outputNote.amount)
 
         /* ---------- 5. vault debt delta ------------------- */
-        const vaultUpdate = new DebtRepaymentIntentUpdate({
+        const vaultUpdate = new DebtRepaymentUpdate({
           vaultAddress,
           debtDelta: amount,
           collateralType,

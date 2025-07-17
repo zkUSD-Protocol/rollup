@@ -141,8 +141,8 @@ export class Note extends Struct({
     return Provable.if(note.isDummy.not(), OutputNoteCommitment.create(note), OutputNoteCommitment.dummy());
   }
 
-  assertAuthorizedSpender(spender: PublicKey): void {
-    this.address.spendingPublicKey.assertEquals(Provable.if(this.isDummy.not(), spender, PublicKey.empty())); 
+  static assertAuthorizedSpender(note: Note, spender: PublicKey): void {
+    note.address.spendingPublicKey.assertEquals(Provable.if(note.isDummy.not(), spender, PublicKey.empty())); 
   }  
 }
 

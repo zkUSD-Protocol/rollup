@@ -5,6 +5,7 @@ import {
   UInt8,
   Bool,
   PublicKey,
+  Provable,
 } from 'o1js';
 import { VaultState } from './vault-state.js';
 import { CollateralType } from './vault-collateral-type.js';
@@ -63,6 +64,13 @@ export class VaultParameters extends Struct({
  */
 export function Vault(params: VaultParameters) {
   const VaultClass = class Vault_ extends Struct(VaultState) {
+    liquidate(debtDelta: UInt64): { liquidateeCollateralDelta: any; liquidatorCollateralDelta: any; } {
+      // todo implement
+      return {
+        liquidateeCollateralDelta: UInt64.zero,
+        liquidatorCollateralDelta: UInt64.zero,
+      };
+    }
     static COLLATERAL_RATIO: Field = params.collateralRatio.value; // The collateral ratio is the minimum ratio of collateral to debt that the vault must maintain
     static COLLATERAL_RATIO_PRECISION = Field.from(100); // The precision of the collateral ratio
     static PROTOCOL_FEE_PRECISION = UInt64.from(100); // The precision of the protocol fee
@@ -120,7 +128,7 @@ export function Vault(params: VaultParameters) {
       amount.assertGreaterThan(UInt64.zero, VaultErrors.AMOUNT_ZERO);
       
       // TODO: not implemented
-      console.warn('TODO: not implemented')
+      Provable.log('TODO: not implemented')
 
       this.collateralAmount = this.collateralAmount.sub(amount);
     }
@@ -132,7 +140,7 @@ export function Vault(params: VaultParameters) {
      */
     repayDebt(amount: UInt64, interestRateScaled: UInt64): VaultState {
       // TODO: include rate
-      console.warn('TODO: include rate')
+      Provable.log('TODO: include rate')
       // Ensure repayment amount is positive
       amount.assertGreaterThan(UInt64.zero, VaultErrors.AMOUNT_ZERO);
 
@@ -165,7 +173,7 @@ export function Vault(params: VaultParameters) {
       interestRateScaled: UInt64,
     ): VaultState {
       // TODO
-      console.warn("TODO: include rate")
+      Provable.log("TODO: include rate")
       amount.assertGreaterThan(UInt64.zero, VaultErrors.AMOUNT_ZERO);
 
       // Calculate health factor after potential mint

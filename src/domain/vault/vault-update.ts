@@ -36,7 +36,7 @@ export class VaultUpdate extends Struct({
   }
 }
 
-export class DebtRepaymentIntentUpdate extends Struct({
+export class DebtRepaymentUpdate extends Struct({
   vaultAddress: VaultAddress,
   debtDelta: UInt64,
   collateralType: CollateralType,
@@ -61,7 +61,7 @@ export class CreateVaultIntentUpdate extends Struct({
   collateralType: CollateralType,
 }) {}
 
-export class RedeemIntentUpdate extends Struct({
+export class RedeemCollateralUpdate extends Struct({
   vaultAddress: VaultAddress,
   collateralDelta: UInt64,
   collateralType: CollateralType,
