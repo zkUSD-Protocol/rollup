@@ -5,6 +5,8 @@ import {
   Struct,
   UInt64,
   ZkProgram,
+  DynamicProof,
+  FeatureFlags,
 } from 'o1js';
 import { InputNotes, OutputNotes } from '../domain/zkusd/zkusd-note.js';
 import { ZkUsdMap } from '../domain/zkusd/zkusd-map.js';
@@ -82,3 +84,11 @@ export const TransferIntent = ZkProgram({
 });
 
 export class TransferIntentProof extends ZkProgram.Proof(TransferIntent) {}
+
+const flags = FeatureFlags.allMaybe;
+export class TransferIntentDynamicProof extends DynamicProof<TransferIntentPreconditions, TransferIntentOutput> {
+  static publicInputType = TransferIntentPreconditions;
+  static publicOutputType = TransferIntentOutput;
+  static maxProofsVerified = 0 as const;
+  static featureFlags = flags;
+}

@@ -5,6 +5,8 @@ import {
   Struct,
   UInt64,
   ZkProgram,
+  DynamicProof,
+  FeatureFlags,
 } from 'o1js';
 import { VaultAddress } from '../domain/vault/vault-address.js';
 import { RedeemCollateralUpdate } from '../domain/vault/vault-update.js';
@@ -63,3 +65,11 @@ export const RedeemIntent = ZkProgram({
 });
 
 export class RedeemIntentProof extends ZkProgram.Proof(RedeemIntent) {}
+
+const flags = FeatureFlags.allMaybe;
+export class RedeemIntentDynamicProof extends DynamicProof<RedeemIntentPreconditions, RedeemIntentOutput> {
+  static publicInputType = RedeemIntentPreconditions;
+  static publicOutputType = RedeemIntentOutput;
+  static maxProofsVerified = 0 as const;
+  static featureFlags = flags;
+}

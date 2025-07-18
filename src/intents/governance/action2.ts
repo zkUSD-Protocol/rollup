@@ -1,5 +1,5 @@
 
-import { Field, Struct, ZkProgram } from "o1js";
+import { Field, Struct, ZkProgram, DynamicProof } from "o1js";
 
 export class GovernanceAction2IntentInput extends Struct({
 	value: Field,
@@ -26,3 +26,9 @@ export const GovernanceAction2Intent = ZkProgram({
 export class GovernanceAction2IntentProof extends ZkProgram.Proof(
   GovernanceAction2Intent
 ) {}
+
+export class GovernanceAction2IntentDynamicProof extends DynamicProof<GovernanceAction2IntentInput, GovernanceAction2IntentOutput> {
+  static publicInputType = GovernanceAction2IntentInput;
+  static publicOutputType = GovernanceAction2IntentOutput;
+  static maxProofsVerified = 0 as const;
+}

@@ -6,6 +6,8 @@ import {
   Struct,
   UInt64,
   ZkProgram,
+  DynamicProof,
+  FeatureFlags,
 } from 'o1js';
 import { InputNotes, Note, OutputNotes } from '../domain/zkusd/zkusd-note.js';
 import { DebtRepaymentUpdate } from '../domain/vault/vault-update.js';
@@ -146,3 +148,11 @@ export const BurnIntent = ZkProgram({
 /* ------------------------------------------------------------------ */
 
 export class BurnIntentProof extends ZkProgram.Proof(BurnIntent) {}
+
+const flags = FeatureFlags.allMaybe;
+export class BurnIntentDynamicProof extends DynamicProof<BurnIntentPreconditions, BurnIntentOutput> {
+  static publicInputType = BurnIntentPreconditions;
+  static publicOutputType = BurnIntentOutput;
+  static maxProofsVerified = 0 as const;
+  static featureFlags = flags;
+}

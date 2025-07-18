@@ -1,4 +1,4 @@
-import { Struct, ZkProgram } from "o1js";
+import { Struct, ZkProgram, DynamicProof, FeatureFlags } from "o1js";
 
 export class DeficitCoverageLiquidationPreconditions extends Struct({
     
@@ -27,3 +27,11 @@ export const DeficitCoverageLiquidation = ZkProgram({
 })
 
 export class DeficitCoverageLiquidationProof extends ZkProgram.Proof(DeficitCoverageLiquidation) {}
+
+const flags = FeatureFlags.allMaybe;
+export class DeficitCoverageLiquidationDynamicProof extends DynamicProof<DeficitCoverageLiquidationPreconditions, DeficitCoverageLiquidationPublicOutput> {
+  static publicInputType = DeficitCoverageLiquidationPreconditions;
+  static publicOutputType = DeficitCoverageLiquidationPublicOutput;
+  static maxProofsVerified = 0 as const;
+  static featureFlags = flags;
+}

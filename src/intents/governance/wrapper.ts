@@ -1,7 +1,7 @@
 
 // now we do wrap up, which is another intent level that combines the two actions
 
-import { Bool, Field, Poseidon, Struct, UInt64, UInt8, ZkProgram } from "o1js";
+import { Bool, Field, Poseidon, Struct, UInt64, UInt8, ZkProgram, DynamicProof, FeatureFlags } from "o1js";
 import { GovernanceAction1IntentProof } from "./action1.js";
 import { GovernanceAction2IntentProof } from "./action2.js";
 import { VaultParameters } from "../../domain/vault/vault.js";
@@ -161,3 +161,12 @@ export const GovActionIntent = ZkProgram({
 export class GovActionIntentProof extends ZkProgram.Proof(
   GovActionIntent
 ) {}
+
+// flags 
+const flags = FeatureFlags.allMaybe;
+export class GovActionIntentDynamicProof extends DynamicProof<GovActionIntentInput, GovActionIntentOutput> {
+  static publicInputType = GovActionIntentInput;
+  static publicOutputType = GovActionIntentOutput;
+  static maxProofsVerified = 0 as const;
+  static featureFlags = flags;
+}

@@ -26,7 +26,7 @@ export function getComputationStepOutput(
 ): ComputationStepOutput {
   const ret = new ComputationStepOutput({
     fizkStateCommitment: Poseidon.hash(state.toFields()),
-    computationVkHTreeRoot: state.governanceState.rollupProgramsVkhTreeRoot.root,
+    computationVkHTreeRoot: state.governanceState.rollupProgramsVkhMapRoot.root,
     blockNumber: state.blockInfoState.blockNumber,
   });
   return ret;

@@ -1,4 +1,4 @@
-import { ZkProgram, Struct, Signature, PublicKey, Field, UInt64 } from "o1js";
+import { ZkProgram, Struct, Signature, PublicKey, Field, UInt64, DynamicProof, FeatureFlags } from "o1js";
 import { FizkRollupState } from "../domain/rollup-state.js";
 import { InputNotes } from "../domain/zkusd/zkusd-note.js";
 import { Note } from "../domain/zkusd/zkusd-note.js";
@@ -110,4 +110,12 @@ export const LiquidateIntent = ZkProgram({
 });
 
 export class LiquidateIntentProof extends ZkProgram.Proof(LiquidateIntent) {}
+
+const flags = FeatureFlags.allMaybe;
+export class LiquidateIntentDynamicProof extends DynamicProof<LiquidateIntentPreconditions, LiquidateIntentOutput> {
+  static publicInputType = LiquidateIntentPreconditions;
+  static publicOutputType = LiquidateIntentOutput;
+  static maxProofsVerified = 0 as const;
+  static featureFlags = flags;
+}
     

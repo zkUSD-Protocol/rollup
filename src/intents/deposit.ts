@@ -5,6 +5,8 @@ import {
   Struct,
   UInt64,
   ZkProgram,
+  DynamicProof,
+  FeatureFlags,
 } from 'o1js';
 import { VaultAddress } from '../domain/vault/vault-address.js';
 import { DepositIntentUpdate } from '../domain/vault/vault-update.js';
@@ -77,3 +79,11 @@ export const DepositIntent = ZkProgram({
 });
 
 export class DepositIntentProof extends ZkProgram.Proof(DepositIntent) {}
+
+const flags = FeatureFlags.allMaybe;
+export class DepositIntentDynamicProof extends DynamicProof<DepositIntentPreconditions, DepositIntentOutput> {
+  static publicInputType = DepositIntentPreconditions;
+  static publicOutputType = DepositIntentOutput;
+  static maxProofsVerified = 0 as const;
+  static featureFlags = flags;
+}

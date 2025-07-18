@@ -5,6 +5,8 @@ import {
   Struct,
   UInt64,
   ZkProgram,
+  DynamicProof,
+  FeatureFlags,
 } from 'o1js';
 import { InputNotes, Note, OutputNotes } from '../domain/zkusd/zkusd-note.js';
 import { ZkusdMapUpdate } from '../state-updates/zkusd-map-update.js';
@@ -118,3 +120,11 @@ export const BridgeIntent = ZkProgram({
 });
 
 export class BridgeOutIntentProof extends ZkProgram.Proof(BridgeIntent) {}
+
+const flags = FeatureFlags.allMaybe;
+export class BridgeOutIntentDynamicProof extends DynamicProof<BridgeOutIntentPreconditions, BridgeOutIntentOutput> {
+  static publicInputType = BridgeOutIntentPreconditions;
+  static publicOutputType = BridgeOutIntentOutput;
+  static maxProofsVerified = 0 as const;
+  static featureFlags = flags;
+}

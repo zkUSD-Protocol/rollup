@@ -4,8 +4,7 @@ import { MerkleRoot } from "../../core/map/merkle-root.js";
 import { StakeMap } from "./stake-map.js";
 import { CouncilMemberMap } from "./council-member-map.js";
 import { BridgeMap } from "../bridging/bridge-map.js";
-
-export class VkhTree {}
+import { VkhMap } from "./vkh-map.js";
 
 export class GovernanceState extends Struct({
     forp: UInt64,
@@ -29,7 +28,7 @@ export class GovernanceState extends Struct({
     bridgeMapRoot: MerkleRoot<BridgeMap>,
     observersMultiSigTreshold: UInt32,
 
-    rollupProgramsVkhTreeRoot: MerkleRoot<VkhTree>,
+    rollupProgramsVkhMapRoot: MerkleRoot<VkhMap>,
     
 }) {
     toFields(): Field[] {
@@ -49,7 +48,7 @@ export class GovernanceState extends Struct({
             this.stakeMapRoot.root,
             this.bridgeMapRoot.root,
             this.observersMultiSigTreshold.value,
-            this.rollupProgramsVkhTreeRoot.root,
+            this.rollupProgramsVkhMapRoot.root,
         ];
     }
 
@@ -70,7 +69,7 @@ export class GovernanceState extends Struct({
             stakeMapRoot: this.stakeMapRoot,
             bridgeMapRoot: this.bridgeMapRoot,
             observersMultiSigTreshold: this.observersMultiSigTreshold,
-            rollupProgramsVkhTreeRoot: this.rollupProgramsVkhTreeRoot,
+            rollupProgramsVkhMapRoot: this.rollupProgramsVkhMapRoot,
         });
     }
 }
@@ -90,7 +89,7 @@ export class GovernanceStateUpdate extends Struct({
     
     bridgeMapRoot: MerkleRoot<BridgeMap>,
     observersMultiSigTreshold: UInt8,
-    rollupProgramsVkhTreeRoot: MerkleRoot<VkhTree>,
+    rollupProgramsVkhMapRoot: MerkleRoot<VkhMap>,
 }) {
     toFields(): Field[] {
         return [
@@ -105,7 +104,7 @@ export class GovernanceStateUpdate extends Struct({
             this.globalGovRewardIndex.value,
             this.bridgeMapRoot.root,
             this.observersMultiSigTreshold.value,
-            this.rollupProgramsVkhTreeRoot.root,
+            this.rollupProgramsVkhMapRoot.root,
         ];
     }
 }

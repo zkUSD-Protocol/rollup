@@ -43,6 +43,7 @@ import { ProveCollateralIO }         from './domain/bridging/prove-collateral-io
 import { Cache } from 'o1js';
 import console from 'node:console';
 import { FizkRollup } from './rollup3.js';
+import { ZkusdRollup } from './rollup.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // List of programs to compile (same identifiers & order as before)
@@ -50,7 +51,7 @@ import { FizkRollup } from './rollup3.js';
 const PROGRAMS = [
   // { name: 'BurnIntent',                  program: BurnIntent, lazy: true },
   // { name: 'BurnComputation',       program: BurnComputation, lazy: true },
-  // { name: 'ObserverPriceProof',          program: OracleBlockDataProgram, lazy: true },
+  { name: 'ObserverPriceProof',          program: OracleBlockDataProgram, lazy: true },
   // { name: 'ObserverBridgeStateProof',    program: ZkusdBridgeState, lazy: true },
   // { name: 'GovernanceAction1Intent',     program: GovernanceAction1Intent, lazy: true },
   // { name: 'GovernanceAction2Intent',     program: GovernanceAction2Intent, lazy: true },
@@ -76,7 +77,8 @@ const PROGRAMS = [
   // { name: 'GovCreateProposalComputation',       program: GovCreateProposalComputation, lazy: true },
   // { name: 'GovVetoProposalComputation',       program: GovVetoProposalComputation, lazy: true },
   // { name: 'GovExecuteUpdateComputation',       program: GovExecuteUpdateComputation, lazy: true },
-  { name: 'FizkRollup',                 program: FizkRollup, lazy: false },
+  // { name: 'FizkRollup',                 program: FizkRollup, lazy: false },
+  { name: 'ZkusdRollup',                 program: ZkusdRollup, lazy: false },
 ] as const;
 
 type ProgEntry = (typeof PROGRAMS)[number];
@@ -117,7 +119,9 @@ async function compileOne({ name, program, lazy }: ProgEntry) {
 
   const t0 = performance.now();
   // cache: false ⇒ run a full compile even if previous artefacts exist
-  await program.compile({ cache: Cache.None });
+  // await program.compile({ cache: Cache.None });
+
+  await program.compile();
 
   
   // await Promise.all([

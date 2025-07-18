@@ -1,4 +1,4 @@
-import { ZkProgram } from "o1js";
+import { ZkProgram, DynamicProof, FeatureFlags } from "o1js";
 import { FizkTokenTransferPreconditions, FizkTokenTransferPublicOutput} from "./common.js";
 import { FizkTokenTransferPrivateInput, transferFizkToken } from "./transfer.js";
 
@@ -15,4 +15,13 @@ export const FizkTokenIntentWrapper = ZkProgram({
         }
     }
 })
+
 export class FizkTokenIntentWrapperProof extends ZkProgram.Proof(FizkTokenIntentWrapper) {}
+
+const flags = FeatureFlags.allMaybe;
+export class FizkTokenIntentWrapperDynamicProof extends DynamicProof<FizkTokenTransferPreconditions, FizkTokenTransferPublicOutput> {
+  static publicInputType = FizkTokenTransferPreconditions;
+  static publicOutputType = FizkTokenTransferPublicOutput;
+  static maxProofsVerified = 0 as const;
+  static featureFlags = flags;
+}

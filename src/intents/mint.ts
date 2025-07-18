@@ -6,6 +6,8 @@ import {
   Struct,
   UInt64,
   ZkProgram,
+  DynamicProof,
+  FeatureFlags,
 } from 'o1js';
 import { ZkUsdMap } from '../domain/zkusd/zkusd-map.js';
 import { Note, Nullifiers, OutputNoteCommitments } from '../domain/zkusd/zkusd-note.js';
@@ -85,3 +87,11 @@ export const MintIntent = ZkProgram({
 });
 
 export class MintIntentProof extends ZkProgram.Proof(MintIntent) {}
+
+const flags = FeatureFlags.allMaybe;
+export class MintIntentDynamicProof extends DynamicProof<MintIntentPreconditions, MintIntentOutput> {
+  static publicInputType = MintIntentPreconditions;
+  static publicOutputType = MintIntentOutput;
+  static maxProofsVerified = 0 as const;
+  static featureFlags = flags;
+}

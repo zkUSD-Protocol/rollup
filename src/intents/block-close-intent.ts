@@ -1,4 +1,11 @@
-import { Struct, UInt64, ZkProgram } from "o1js";
+import {
+  Field,
+  Struct,
+  UInt64,
+  ZkProgram,
+  DynamicProof,
+  FeatureFlags,
+} from 'o1js';
 import { MerkleRoot } from "../core/map/merkle-root.js";
 import { ObserverMap } from "../domain/enclave/observer-map.js";
 import { HistoricalBlockStateMap } from "../domain/block-info/historical-block-state-map.js";
@@ -28,6 +35,14 @@ export const BlockCloseIntent = ZkProgram({
 })
 
 export class BlockCloseIntentProof extends ZkProgram.Proof(BlockCloseIntent) {}
+
+const flags = FeatureFlags.allMaybe;
+export class BlockCloseIntentDynamicProof extends DynamicProof<BlockCloseIntentPublicInput, BlockCloseIntentPublicOutput> {
+  static publicInputType = BlockCloseIntentPublicInput;
+  static publicOutputType = BlockCloseIntentPublicOutput;
+  static maxProofsVerified = 0 as const;
+  static featureFlags = flags;
+}
 
 
 export class OracleBlockDataProofPublicInput extends Struct({
