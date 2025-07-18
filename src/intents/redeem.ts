@@ -66,7 +66,7 @@ export const RedeemIntent = ZkProgram({
 
 export class RedeemIntentProof extends ZkProgram.Proof(RedeemIntent) {}
 
-const flags = FeatureFlags.allMaybe;
+const flags = FeatureFlags.allNone;
 export class RedeemIntentDynamicProof extends DynamicProof<RedeemIntentPreconditions, RedeemIntentOutput> {
   static publicInputType = RedeemIntentPreconditions;
   static publicOutputType = RedeemIntentOutput;

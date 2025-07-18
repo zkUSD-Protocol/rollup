@@ -36,7 +36,7 @@ export const BlockCloseIntent = ZkProgram({
 
 export class BlockCloseIntentProof extends ZkProgram.Proof(BlockCloseIntent) {}
 
-const flags = FeatureFlags.allMaybe;
+const flags = FeatureFlags.allNone;
 export class BlockCloseIntentDynamicProof extends DynamicProof<BlockCloseIntentPublicInput, BlockCloseIntentPublicOutput> {
   static publicInputType = BlockCloseIntentPublicInput;
   static publicOutputType = BlockCloseIntentPublicOutput;

@@ -6,7 +6,7 @@ class SingleComputationProof extends DynamicProof<Field, ComputationStepOutput> 
   static publicOutputType = ComputationStepOutput;
   static maxProofsVerified = 0 as const;
 
-  static featureFlags = FeatureFlags.allMaybe;
+  static featureFlags = FeatureFlags.allNone;
 }
 
 const ComputationVkhTreeHeight = 10;

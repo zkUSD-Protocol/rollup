@@ -1,11 +1,12 @@
-date: '2025-07-18T12:15:52.462Z'
+date: '2025-07-18T13:05:45.661Z'
 environment:
   node: v23.9.0
   platform: linux
 programs:
+  ObserverPriceProof:
+    compile_time_ms: 2037.15
+    methods:
+      dummy:
+        Total rows: 0
   ZkusdRollup:
-    error: >-
-      Error: ZkusdRollup.compile() depends on ObserverBlockDataProgram, but we
-      cannot find compilation output for ObserverBlockDataProgram.
-
-      Try to run ObserverBlockDataProgram.compile() first.
+    error: 'RuntimeError: unreachable'

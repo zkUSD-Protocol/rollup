@@ -163,7 +163,7 @@ export class GovActionIntentProof extends ZkProgram.Proof(
 ) {}
 
 // flags 
-const flags = FeatureFlags.allMaybe;
+const flags = FeatureFlags.allNone;
 export class GovActionIntentDynamicProof extends DynamicProof<GovActionIntentInput, GovActionIntentOutput> {
   static publicInputType = GovActionIntentInput;
   static publicOutputType = GovActionIntentOutput;

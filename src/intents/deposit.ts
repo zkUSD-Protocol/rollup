@@ -80,7 +80,7 @@ export const DepositIntent = ZkProgram({
 
 export class DepositIntentProof extends ZkProgram.Proof(DepositIntent) {}
 
-const flags = FeatureFlags.allMaybe;
+const flags = FeatureFlags.allNone;
 export class DepositIntentDynamicProof extends DynamicProof<DepositIntentPreconditions, DepositIntentOutput> {
   static publicInputType = DepositIntentPreconditions;
   static publicOutputType = DepositIntentOutput;

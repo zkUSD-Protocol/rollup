@@ -116,7 +116,7 @@ export class CreateVaultIntentProof extends ZkProgram.Proof(
   CreateVaultIntent
 ) {}
 
-const flags = FeatureFlags.allMaybe;
+const flags = FeatureFlags.allNone;
 
 export class CreateVaultIntentDynamicProof extends DynamicProof<Field, CreateVaultIntentOutput> {
   static publicInputType = Field;

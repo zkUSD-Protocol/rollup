@@ -18,7 +18,7 @@ export const FizkTokenIntentWrapper = ZkProgram({
 
 export class FizkTokenIntentWrapperProof extends ZkProgram.Proof(FizkTokenIntentWrapper) {}
 
-const flags = FeatureFlags.allMaybe;
+const flags = FeatureFlags.allNone;
 export class FizkTokenIntentWrapperDynamicProof extends DynamicProof<FizkTokenTransferPreconditions, FizkTokenTransferPublicOutput> {
   static publicInputType = FizkTokenTransferPreconditions;
   static publicOutputType = FizkTokenTransferPublicOutput;

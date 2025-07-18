@@ -92,7 +92,7 @@ export const BridgeInIntent = ZkProgram({
 
 export class BridgeInIntentProof extends ZkProgram.Proof(BridgeInIntent) {}
 
-const flags = FeatureFlags.allMaybe;
+const flags = FeatureFlags.allNone;
 export class BridgeInIntentDynamicProof extends DynamicProof<BridgeInIntentPreconditions, BridgeInIntentOutput> {
   static publicInputType = BridgeInIntentPreconditions;
   static publicOutputType = BridgeInIntentOutput;

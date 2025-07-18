@@ -28,7 +28,7 @@ export const DeficitCoverageLiquidation = ZkProgram({
 
 export class DeficitCoverageLiquidationProof extends ZkProgram.Proof(DeficitCoverageLiquidation) {}
 
-const flags = FeatureFlags.allMaybe;
+const flags = FeatureFlags.allNone;
 export class DeficitCoverageLiquidationDynamicProof extends DynamicProof<DeficitCoverageLiquidationPreconditions, DeficitCoverageLiquidationPublicOutput> {
   static publicInputType = DeficitCoverageLiquidationPreconditions;
   static publicOutputType = DeficitCoverageLiquidationPublicOutput;
