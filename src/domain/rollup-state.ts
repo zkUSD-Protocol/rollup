@@ -7,9 +7,11 @@ import { FizkTokenState } from "./fizk-token/fizk-token-state.js";
 import { BlockInfoState } from "./block-info/block-info-state.js";
 import { ZkusdEnclavesState } from "./enclave/zskud-enclaves-state.js";
 import { ZkUsdVaults } from "./vault/zkusd-vaults.js";
+import { RollupVerificationState } from "./rollup/rollup-verification-state.js";
 
 // includes all the different states from the domain subfolders
 export class FizkRollupState extends Struct({
+    rollupVerificationState: RollupVerificationState,
     zkUsdState: ZkUsdState,
     vaultState: ZkUsdVaults,
     governanceState: GovernanceState,
@@ -21,6 +23,7 @@ export class FizkRollupState extends Struct({
 }){
 	toFields() : Field[] {
 		return [
+			...this.rollupVerificationState.toFields(),
 			...this.zkUsdState.toFields(),
 			...this.vaultState.toFields(),
 			...this.governanceState.toFields(),

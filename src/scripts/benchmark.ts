@@ -43,7 +43,7 @@ import { ProveCollateralIO }         from './domain/bridging/prove-collateral-io
 import { Cache } from 'o1js';
 import console from 'node:console';
 import { FizkRollup } from './rollup3.js';
-import { ZkusdRollup } from './rollup.js';
+import { FizkStateUpdateRollup } from './rollup/state-update-rollup.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // List of programs to compile (same identifiers & order as before)
@@ -78,7 +78,7 @@ const PROGRAMS = [
   // { name: 'GovVetoProposalComputation',       program: GovVetoProposalComputation, lazy: true },
   // { name: 'GovExecuteUpdateComputation',       program: GovExecuteUpdateComputation, lazy: true },
   // { name: 'FizkRollup',                 program: FizkRollup, lazy: false },
-  { name: 'ZkusdRollup',                 program: ZkusdRollup, lazy: false },
+  { name: 'ZkusdRollup',                 program: FizkStateUpdateRollup, lazy: false },
 ] as const;
 
 type ProgEntry = (typeof PROGRAMS)[number];

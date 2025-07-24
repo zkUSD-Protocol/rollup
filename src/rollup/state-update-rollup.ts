@@ -1,39 +1,39 @@
 import { Field, Poseidon, Provable, Struct, UInt64, VerificationKey, ZkProgram } from "o1js";
 
-import { FizkRollupState } from "./domain/rollup-state.js";
-import { BlockCloseIntentPrivateInput } from "./intents/block-close-intent.js";
-import { HistoricalBlockStateMap } from "./domain/block-info/historical-block-state-map.js";
-import { BlockInfoState } from "./domain/block-info/block-info-state.js";
+import { FizkRollupState } from "../domain/rollup-state.js";
+import { BlockCloseIntentPrivateInput } from "../intents/block-close-intent.js";
+import { HistoricalBlockStateMap } from "../domain/block-info/historical-block-state-map.js";
+import { BlockInfoState } from "../domain/block-info/block-info-state.js";
 import {
   proposalInclusionCommitmentForStatus,
   GovActionType,
   GovProposalStatus,
   GovSystemUpdate,
   GovActionIntentDynamicProof,
-} from "./intents/governance/wrapper.js";
-import { ProposalMap } from "./domain/governance/proposal-map.js";
-import { Timestamp } from "./core/timestamp.js";
-import { CreateVaultIntentDynamicProof, CreateVaultIntentProof } from "./intents/create-vault.js";
-import { VaultMap } from "./domain/vault/vault-map.js";
-import { VaultParameters } from "./domain/vault/vault.js";
-import { CollateralType } from "./domain/vault/vault-collateral-type.js";
-import { DepositIntentDynamicProof } from "./intents/deposit.js";
-import { CollateralIoMap } from "./domain/bridging/collateral-io-map.js";
-import { CollateralIOAccumulators } from "./domain/bridging/collateral-io-accumulators.js";
-import { RedeemIntentDynamicProof } from "./intents/redeem.js";
-import { TransferIntentDynamicProof } from "./intents/transfer.js";
-import { ZkUsdMap } from "./domain/zkusd/zkusd-map.js";
-import { BurnIntentDynamicProof } from "./intents/burn.js";
-import { MintIntentDynamicProof } from "./intents/mint.js";
-import { BridgeInIntentDynamicProof } from "./intents/bridge-in.js";
-import { BridgeIoMap } from "./domain/bridging/bridge-io-map.js";
-import { BridgeMap } from "./domain/bridging/bridge-map.js";
-import { ObserverMap } from "./domain/enclave/observer-map.js";
-import { getRoot } from "./core/map/merkle-root.js";
-import { LiquidateIntentDynamicProof } from "./intents/liquidate.js";
-import { RedeemCollateralUpdate } from "./domain/vault/vault-update.js";
-import { BridgeOutIntentDynamicProof } from "./intents/bridge-out.js";
-import { VkhMap } from "./domain/governance/vkh-map.js";
+} from "../intents/governance/wrapper.js";
+import { ProposalMap } from "../domain/governance/proposal-map.js";
+import { Timestamp } from "../core/timestamp.js";
+import { CreateVaultIntentDynamicProof, CreateVaultIntentProof } from "../intents/create-vault.js";
+import { VaultMap } from "../domain/vault/vault-map.js";
+import { VaultParameters } from "../domain/vault/vault.js";
+import { CollateralType } from "../domain/vault/vault-collateral-type.js";
+import { DepositIntentDynamicProof } from "../intents/deposit.js";
+import { CollateralIoMap } from "../domain/bridging/collateral-io-map.js";
+import { CollateralIOAccumulators } from "../domain/bridging/collateral-io-accumulators.js";
+import { RedeemIntentDynamicProof } from "../intents/redeem.js";
+import { TransferIntentDynamicProof } from "../intents/transfer.js";
+import { ZkUsdMap } from "../domain/zkusd/zkusd-map.js";
+import { BurnIntentDynamicProof } from "../intents/burn.js";
+import { MintIntentDynamicProof } from "../intents/mint.js";
+import { BridgeInIntentDynamicProof } from "../intents/bridge-in.js";
+import { BridgeIoMap } from "../domain/bridging/bridge-io-map.js";
+import { BridgeMap } from "../domain/bridging/bridge-map.js";
+import { ObserverMap } from "../domain/enclave/observer-map.js";
+import { getRoot } from "../core/map/merkle-root.js";
+import { LiquidateIntentDynamicProof } from "../intents/liquidate.js";
+import { RedeemCollateralUpdate } from "../domain/vault/vault-update.js";
+import { BridgeOutIntentDynamicProof } from "../intents/bridge-out.js";
+import { VkhMap } from "../domain/governance/vkh-map.js";
 
 function log(msg: string, v?: unknown) {
 Provable.log(msg);
@@ -220,8 +220,8 @@ export class BridgeInPrivateInput extends Struct({
 	proofVerification: IntentProofVerification,
 }) {}
 
-export const ZkusdRollup = ZkProgram({
-  name: "ZkusdRollup",
+export const FizkStateUpdateRollup = ZkProgram({
+  name: "FizkStateUpdateRollup",
   publicInput: FizkRollupState,
   publicOutput: FizkRollupState,
   methods: {
