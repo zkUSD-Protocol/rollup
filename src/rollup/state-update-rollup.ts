@@ -1,4 +1,4 @@
-import { Field, Poseidon, Provable, Struct, UInt64, VerificationKey, ZkProgram } from "o1js";
+import { DynamicProof, FeatureFlags, Field, Poseidon, Provable, Struct, UInt64, VerificationKey, ZkProgram } from "o1js";
 
 import { FizkRollupState } from "../domain/rollup-state.js";
 import { BlockCloseIntentPrivateInput } from "../intents/block-close-intent.js";
@@ -34,6 +34,8 @@ import { LiquidateIntentDynamicProof } from "../intents/liquidate.js";
 import { RedeemCollateralUpdate } from "../domain/vault/vault-update.js";
 import { BridgeOutIntentDynamicProof } from "../intents/bridge-out.js";
 import { VkhMap } from "../domain/governance/vkh-map.js";
+import { FizkTokenUpdates } from "../domain/fizk-token/fizk-token-update.js";
+import { FizkTokenMap, VerifiedFizkTokenUpdates } from "../domain/fizk-token/fizk-token-map.js";
 
 function log(msg: string, v?: unknown) {
 Provable.log(msg);
@@ -122,16 +124,16 @@ function verifyProposalSnapshot(
   currentTimestamp.isGreaterThanBy(snapshotTimestamp, snapshotValidityMillis).assertFalse();
 }
 
-export class IntentProofVerification extends Struct({
+export class ProofVerification extends Struct({
   verificationKey: VerificationKey,
-  intentVkhKey: Field,
+  vkhKey: Field,
   vkhMap: VkhMap,
 }) {}
 
 export class GovExecuteUpdatePrivateInput extends Struct({
   proof: GovActionIntentDynamicProof,
   liveProposalMap: ProposalMap,
-  proofVerification: IntentProofVerification,
+  proofVerification: ProofVerification,
 }) {}
 
 
@@ -140,7 +142,7 @@ export class GovCreateProposalPrivateInput extends Struct({
 	liveProposalMap: ProposalMap,
 	proposalSnapshotState: FizkRollupState,
 	historicalBlockStateMap: HistoricalBlockStateMap,
-	proofVerification: IntentProofVerification,
+	proofVerification: ProofVerification,
 }) {}
 
 export class GovVetoProposalPrivateInput extends Struct({
@@ -148,36 +150,53 @@ export class GovVetoProposalPrivateInput extends Struct({
 	liveProposalMap: ProposalMap,
 	proposalSnapshotState: FizkRollupState,
 	historicalBlockStateMap: HistoricalBlockStateMap,
-	proofVerification: IntentProofVerification,
+	proofVerification: ProofVerification,
 }) {}
 
+export class FizkWrapupPreconditions extends Struct({
+  rollupStateRoot: Field, // TODO, contain only fields it depends on
+}) {}
+
+export class FizkTokenUpdateWrapupDynamicProof extends DynamicProof<FizkWrapupPreconditions, VerifiedFizkTokenUpdates> {
+  static publicInputType = FizkWrapupPreconditions;
+  static publicOutputType = VerifiedFizkTokenUpdates;
+  static maxProofsVerified = 0 as const;
+
+  static featureFlags = FeatureFlags.allNone; // should allow FizkTokenUpdateWrapup proofs
+}
+
+export class FizkTokenUpdateWrapupPrivateInput extends Struct({
+	proof: FizkTokenUpdateWrapupDynamicProof,
+  proofVerification: ProofVerification,
+  fizkTokenMap: FizkTokenMap,
+}) {}
 
 export class CreateVaultPrivateInput extends Struct({
 	proof: CreateVaultIntentDynamicProof,
 	vaultMap: VaultMap,
 	iomap: CollateralIoMap,
-	proofVerification: IntentProofVerification,
+	proofVerification: ProofVerification,
 }) {}
 
 export class DepositPrivateInput extends Struct({
 	proof: DepositIntentDynamicProof,
 	vaultMap: VaultMap,
 	iomap: CollateralIoMap,
-	proofVerification: IntentProofVerification,
+	proofVerification: ProofVerification,
 }) {}
 
 export class RedeemPrivateInput extends Struct({
 	proof: RedeemIntentDynamicProof,
 	vaultMap: VaultMap,
 	iomap: CollateralIoMap,
-	proofVerification: IntentProofVerification,
+	proofVerification: ProofVerification,
 }) {}
 
 export class TransferPrivateInput extends Struct({
 	historicalBlockStateMap: HistoricalBlockStateMap,
 	zkusdMap: ZkUsdMap,
 	proof: TransferIntentDynamicProof,
-	proofVerification: IntentProofVerification,
+	proofVerification: ProofVerification,
 }) {}
 
 export class BurnPrivateInput extends Struct({
@@ -185,7 +204,7 @@ export class BurnPrivateInput extends Struct({
 	zkusdMap: ZkUsdMap,
 	vaultMap: VaultMap,
 	historicalBlockStateMap: HistoricalBlockStateMap,
-	proofVerification: IntentProofVerification,
+	proofVerification: ProofVerification,
 }) {}
 
 export class LiquidatePrivateInput extends Struct({
@@ -194,14 +213,14 @@ export class LiquidatePrivateInput extends Struct({
 	vaultMap: VaultMap,
 	collateralIoMap: CollateralIoMap,
 	historicalBlockStateMap: HistoricalBlockStateMap,
-	proofVerification: IntentProofVerification,
+	proofVerification: ProofVerification,
 }) {}
 export class MintPrivateInput extends Struct({
 	proof: MintIntentDynamicProof,
 	zkusdMap: ZkUsdMap,
 	vaultMap: VaultMap,
 	historicalBlockStateMap: HistoricalBlockStateMap,
-	proofVerification: IntentProofVerification,
+	proofVerification: ProofVerification,
 }) {}
 export class BridgeOutPrivateInput extends Struct({
 	proof: BridgeOutIntentDynamicProof,
@@ -209,7 +228,7 @@ export class BridgeOutPrivateInput extends Struct({
 	zkusdMap: ZkUsdMap,
 	bridgeIoMap: BridgeIoMap,
 	historicalBlockStateMap: HistoricalBlockStateMap,
-	proofVerification: IntentProofVerification,
+	proofVerification: ProofVerification,
 }) {}
 
 export class BridgeInPrivateInput extends Struct({
@@ -217,7 +236,7 @@ export class BridgeInPrivateInput extends Struct({
 	observerMap: ObserverMap,
 	zkusdMap: ZkUsdMap,
 	bridgeIoMap: BridgeIoMap,
-	proofVerification: IntentProofVerification,
+	proofVerification: ProofVerification,
 }) {}
 
 export const FizkStateUpdateRollup = ZkProgram({
@@ -225,6 +244,37 @@ export const FizkStateUpdateRollup = ZkProgram({
   publicInput: FizkRollupState,
   publicOutput: FizkRollupState,
   methods: {
+    fizkTokenUpdate: {
+      privateInputs: [FizkTokenUpdateWrapupPrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: FizkTokenUpdateWrapupPrivateInput & {
+          proofVerification: {verificationKey: VerificationKey, vkhKey: Field, vkhMap: VkhMap},
+          fizkTokenMap: FizkTokenMap,
+        }
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        // verify proof
+        privateInput.proof.verify(privateInput.proofVerification.verificationKey);
+        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
+        publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
+
+        // assert state equality 
+        // TODO this is expensive may be we could use cheaper polynomial commitments for this (Silvana)
+        Poseidon.hash(publicInput.toFields()).assertEquals(privateInput.proof.publicInput.rollupStateRoot);
+
+        // verify fizk map
+        publicInput.fizkTokenState.fizkTokenMapRoot.assertEquals(getRoot(privateInput.fizkTokenMap));
+
+        // apply updates
+        const newFizkTokenMapRoot = FizkTokenMap.applyVerifiedUpdates(privateInput.fizkTokenMap, privateInput.proof.publicOutput);
+
+        // update state
+        publicInput.fizkTokenState.fizkTokenMapRoot = newFizkTokenMapRoot;
+
+        // return updated state
+        return { publicOutput: publicInput };
+      }
+    },
     createVault: {
       privateInputs: [CreateVaultPrivateInput],
       async method(
@@ -238,7 +288,7 @@ export const FizkStateUpdateRollup = ZkProgram({
         log("createVault: start");
         log("createVault: before proof.verify");
         privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.intentVkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
+        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
         publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
         log("createVault: after proof.verify");
 
@@ -282,7 +332,7 @@ export const FizkStateUpdateRollup = ZkProgram({
         log("depositCollateral: start");
         log("depositCollateral: before proof.verify");
         privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.intentVkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
+        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
         publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
         log("depositCollateral: after proof.verify");
 
@@ -338,7 +388,7 @@ export const FizkStateUpdateRollup = ZkProgram({
       ): Promise<{ publicOutput: FizkRollupState }> {
         log("redeemCollateral: before proof.verify");
         privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.intentVkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
+        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
         publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
         log("redeemCollateral: after proof.verify");
 
@@ -391,7 +441,7 @@ export const FizkStateUpdateRollup = ZkProgram({
       ): Promise<{ publicOutput: FizkRollupState }> {
         log("bridgeOut: before proof.verify");
         privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.intentVkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
+        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
         publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
         log("bridgeOut: after proof.verify");
 
@@ -449,7 +499,7 @@ export const FizkStateUpdateRollup = ZkProgram({
       ): Promise<{ publicOutput: FizkRollupState }> {
         log("bridgeIn: before proof.verify");
         privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.intentVkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
+        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
         publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
         log("bridgeIn: after proof.verify");
 
@@ -516,7 +566,7 @@ export const FizkStateUpdateRollup = ZkProgram({
       ): Promise<{ publicOutput: FizkRollupState }> {
         log("burn: before proof.verify");
         privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.intentVkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
+        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
         publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
         log("burn: after proof.verify");
 
@@ -573,7 +623,7 @@ export const FizkStateUpdateRollup = ZkProgram({
       ): Promise<{ publicOutput: FizkRollupState }> {
         log("liquidate: before proof.verify");
         privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.intentVkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
+        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
         publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
         log("liquidate: after proof.verify");
 
@@ -678,7 +728,7 @@ export const FizkStateUpdateRollup = ZkProgram({
       ): Promise<{ publicOutput: FizkRollupState }> {
         log("mint: before proof.verify");
         privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.intentVkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
+        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
         publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
         log("mint: after proof.verify");
 
@@ -753,7 +803,7 @@ export const FizkStateUpdateRollup = ZkProgram({
       ): Promise<{ publicOutput: FizkRollupState }> {
         log("transfer: before proof.verify");
         privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.intentVkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
+        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
         publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
         log("transfer: after proof.verify");
 
@@ -795,7 +845,7 @@ export const FizkStateUpdateRollup = ZkProgram({
       ): Promise<{ publicOutput: FizkRollupState }> {
         log("govCreateProposal: before proof.verify");
         privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.intentVkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
+        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
         publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
         log("govCreateProposal: after proof.verify");
 
@@ -839,7 +889,7 @@ export const FizkStateUpdateRollup = ZkProgram({
       ): Promise<{ publicOutput: FizkRollupState }> {
         log("govVetoProposal: before proof.verify");
         privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.intentVkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
+        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
         publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
         log("govVetoProposal: after proof.verify");
 
@@ -895,7 +945,7 @@ export const FizkStateUpdateRollup = ZkProgram({
       ): Promise<{ publicOutput: FizkRollupState }> {
         log("govExecuteUpdateIntent: before proof.verify");
         privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.intentVkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
+        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
         publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
         log("govExecuteUpdateIntent: after proof.verify");
 

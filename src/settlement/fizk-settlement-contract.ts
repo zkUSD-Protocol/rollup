@@ -14,7 +14,7 @@ class BlockDataMap extends IndexedMerkleMap(BlockDataMapC.Height) {}
 
 // this is a POC of the settlement contract.
 // it shows the logic/sketch of settlement methods logic
-export class SettlementContract extends SmartContract {
+export class FizkSettlementContract extends SmartContract {
     @state (UInt64) blockNumber = State<UInt64>(UInt64.zero);
     @state (Field) stateCommitment = State<Field>(Field(0));
     @state (Field) lastBlockDataMerkleRoot = State<Field>(Field(0));

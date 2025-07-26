@@ -6,12 +6,27 @@ import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
 import { MerkleRoot } from '../../core/map/merkle-root.js';
 import { FizkTokenState } from './fizk-token-state.js';
-import { FizkTokenUpdate } from './fizk-token-update.js';
+import { FizkTokenUpdate, FizkTokenUpdates } from './fizk-token-update.js';
+import { Struct } from 'o1js';
+import { FizkMapValue } from './fizk-map-value.js';
 
 const FIZK_MAP_HEIGHT = 52; // 4,503,599,627,370,496 - 4.5 quadrillion
 
 // Create base serializable map
 const FizkTokenMapBase = createSerializableIndexedMap(FIZK_MAP_HEIGHT);
+
+export class VerfiedFizkTokenUpdate {
+    update: FizkTokenUpdate;
+}
+
+// they must be applicable without issues to the current state of map
+export class VerifiedFizkTokenUpdates extends Struct({
+  applicableMapRoot: MerkleRoot<FizkTokenMap>,
+  updates: FizkTokenUpdates,
+}) {
+
+  static Length = FizkTokenUpdates.Length;
+}
 
 export class FizkTokenMap extends FizkTokenMapBase {
   /**
@@ -25,8 +40,8 @@ export class FizkTokenMap extends FizkTokenMapBase {
   /**
    * Get the root of the map
    */
-  getRoot(): MerkleRoot<FizkTokenMap> {
-    return new MerkleRoot({ root: this.root });
+  static getRoot(map: FizkTokenMap): MerkleRoot<FizkTokenMap> {
+    return new MerkleRoot({ root: map.root });
   }
 
   /**
@@ -44,6 +59,15 @@ export class FizkTokenMap extends FizkTokenMapBase {
   }
 
   verifyAndUpdate(_state: FizkTokenState, _update: FizkTokenUpdate) {
+  }
+
+  static applyVerifiedUpdates(map: FizkTokenMap, verifiedUpdates: VerifiedFizkTokenUpdates): MerkleRoot<FizkTokenMap>{
+    map.root.assertEquals(verifiedUpdates.applicableMapRoot.root);
+    for(let i = 0; i < VerifiedFizkTokenUpdates.Length; i++){
+      const update = verifiedUpdates.updates.updates[i];
+      map.setIf(update.isNotDummy, update.address.address, FizkMapValue.pack(update.value));
+    }
+    return new MerkleRoot({ root: map.root });
   }
 }
 
