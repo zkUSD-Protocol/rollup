@@ -6,6 +6,7 @@ import { FizkAddStakePreconditions, FizkAddStakePublicOutput } from "./stake.js"
 import { FizkMapValue } from "../../domain/fizk-token/fizk-map-value.js";
 import { OutputNoteCommitments } from "../../domain/zkusd/zkusd-note.js";
 import { MerkleRoot } from "../../core/map/merkle-root.js";
+import { uint50toUint64 } from "../../core/uint50.js";
 
 export class FizkWrapupPreconditions extends Struct({
   currentRewardIndex: UInt64,
@@ -16,6 +17,7 @@ export class FizkWrapupPreconditions extends Struct({
 export class FizkWrapupPublicOutput extends Struct({
     verifiedFizkTokenUpdates: VerifiedFizkTokenUpdates,
     outputNoteCommitments: OutputNoteCommitments,
+    totalAmountStaked: UInt64,
 }) {}   
 
 export class FizkAddStakeIntentDynamicProof extends DynamicProof<FizkAddStakePreconditions, FizkAddStakePublicOutput> {
@@ -31,6 +33,26 @@ export class FizkAddStakePrivateInput extends Struct({
     fizkTokenMap: ClonedFizkTokenMap,
 }) {}
 
+export class FizkModifyWithdrawalPrivateInput extends Struct({
+    intentProof: FizkAddStakeIntentDynamicProof,
+    proofVerification: ProofVerification,
+    fizkTokenMap: ClonedFizkTokenMap,
+}) {}
+
+export class FizkModifyWithdrawalPublicOutput extends Struct({
+    verifiedFizkTokenUpdates: VerifiedFizkTokenUpdates,
+    outputNoteCommitments: OutputNoteCommitments,
+    totalAmountStaked: UInt64,
+}) {}
+
+
+// export class FizkModifyWithdrawalIntentDynamicProof extends DynamicProof<FizkModifyWithdrawalPreconditions, FizkModifyWithdrawalPublicOutput> {
+//     static publicInputType = FizkModifyWithdrawalPreconditions;
+//     static publicOutputType = FizkModifyWithdrawalPublicOutput;
+//     static maxProofsVerified = 0 as const;
+//     static featureFlags = FeatureFlags.allNone;
+// }   
+
 
 export const FizkTokenIntentWrapper = ZkProgram({
     name: 'FizkTokenIntentWrapper',
@@ -43,6 +65,39 @@ export const FizkTokenIntentWrapper = ZkProgram({
         //         return Promise.resolve(transferFizkToken(publicInput, privateInput));
         //     }
         // }
+
+        modifyWithdrawal:{
+            privateInputs: [FizkModifyWithdrawalPrivateInput],
+            async method(publicInput: FizkWrapupPreconditions, privateInput: FizkModifyWithdrawalPrivateInput): Promise<{ publicOutput: FizkWrapupPublicOutput }> {
+                // -- verify proof preconditions
+                // get the fizk map value
+                const fizkMapValue = FizkMapValue.unpack(privateInput.fizkTokenMap.get(privateInput.intentProof.publicOutput.modifyWithdrawalUpdate.target.value));
+                const amountStaked = fizkMapValue.amountStaked;
+                const rewardIndexSnapshot = fizkMapValue.globalGovRewardIndexSnapshot;
+
+                const preconditions = privateInput.intentProof.publicInput;
+                preconditions.totalAmountStaked.assertEquals(publicInput.totalAmountStaked);
+                preconditions.globalGovRewardIndexSnapshot.assertEquals(rewardIndexSnapshot);
+                preconditions.amountStaked.assertEquals(amountStaked);
+                preconditions.currentGlobalGovRewardIndex.assertEquals(publicInput.currentRewardIndex);
+
+                // verify proof
+                verifyDynamicProof(privateInput.intentProof, privateInput.proofVerification, publicInput.vkhMapRoot);
+
+                // process updates using the clone of the map
+                const modifyWithdrawalUpdate = privateInput.intentProof.publicOutput.modifyWithdrawalUpdate;
+                const outputNoteCommitment = privateInput.intentProof.publicOutput.outputNoteCommitment;
+                const outputNoteCommitments = OutputNoteCommitments.empty();
+                outputNoteCommitments.commitments[0] = outputNoteCommitment;
+                
+                const verifiedFizkTokenUpdates = ClonedFizkTokenMap.verifyModifyWithdrawalUpdate(privateInput.fizkTokenMap as ClonedFizkTokenMap, modifyWithdrawalUpdate);
+                
+                const totalAmountStaked: UInt64 = uint50toUint64(amountStaked).add(uint50toUint64(modifyWithdrawalUpdate.amount));
+                
+                return { publicOutput: { verifiedFizkTokenUpdates, outputNoteCommitments, totalAmountStaked } };
+            }
+        },
+
 
         addStake: {
             privateInputs: [FizkAddStakePrivateInput],
@@ -68,9 +123,11 @@ export const FizkTokenIntentWrapper = ZkProgram({
                 const outputNoteCommitments = OutputNoteCommitments.empty();
                 outputNoteCommitments.commitments[0] = outputNoteCommitment;
                 
-                const verifiedFizkTokenUpdates = ClonedFizkTokenMap.verifyAddStakeUpdate(privateInput.fizkTokenMap as ClonedFizkTokenMap, addStakeUpdate, publicInput.currentRewardIndex);
+                const verifiedFizkTokenUpdates = ClonedFizkTokenMap.verifyAddStakeUpdate(privateInput.fizkTokenMap as ClonedFizkTokenMap, addStakeUpdate);
                 
-                return { publicOutput: { verifiedFizkTokenUpdates, outputNoteCommitments } };
+                const totalAmountStaked: UInt64 = uint50toUint64(amountStaked).add(uint50toUint64(addStakeUpdate.amount));
+                
+                return { publicOutput: { verifiedFizkTokenUpdates, outputNoteCommitments, totalAmountStaked } };
             }
         }
     }

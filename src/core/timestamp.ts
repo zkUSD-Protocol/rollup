@@ -1,5 +1,38 @@
-import { Bool, Field, Struct, UInt64 } from "o1js";
+import { Bool, Field, Struct, UInt32, UInt64 } from "o1js";
 
+
+// 34 unsigned bits seconds timestamp will run out after year 2500
+// and is compact
+export class Timestamp34 extends Struct({
+    timestampSeconds: UInt64,
+}) {
+
+    toBits(): Bool[] {
+        return this.timestampSeconds.toBits().slice(0, 34);
+    }
+
+    static fromBits(bits: Bool[]): Timestamp34 {
+        return new Timestamp34({ timestampSeconds: UInt64.fromBits(bits.slice(0, 34)) });
+    }
+     
+    static fromTimestamp(timestamp: Timestamp): Timestamp34 {
+        // assuming that Timestamp is not after year 2500
+        return new Timestamp34({ timestampSeconds: timestamp.timestampMs.divMod(1000).quotient });
+    }
+
+    static toTimestamp(timestamp34: Timestamp34): Timestamp {
+        return new Timestamp({ timestampMs: timestamp34.timestampSeconds.mul(UInt64.from(1000)) });
+    }
+
+    static fromSeconds(seconds: UInt32): Timestamp34 {
+        return new Timestamp34({ timestampSeconds: UInt64.from(seconds) });
+    }
+    
+    static unsafeFromSeconds(seconds: UInt64): Timestamp34 {
+        return new Timestamp34({ timestampSeconds: seconds });
+    }
+    
+}
 
 export class Timestamp extends Struct({
     timestampMs: UInt64,
@@ -7,6 +40,10 @@ export class Timestamp extends Struct({
 
     toFields(): Field[] {
         return [this.timestampMs.value];
+    }
+
+    static fromUInt64(timestampMs: UInt64): Timestamp {
+        return new Timestamp({ timestampMs });
     }
 
     static fromMillis(timestampMs: number): Timestamp {

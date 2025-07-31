@@ -22,6 +22,10 @@ export class UInt50 extends Struct({
         v1.value.assertGreaterThanOrEqual(v2.value);
         return new UInt50({value: v1.value.sub(v2.value)});
     }
+
+    toFields(): Field[] {
+        return [this.value];
+    }
 }
 
 export function uint50toUint64(v: UInt50): UInt64 {

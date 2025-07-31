@@ -267,7 +267,7 @@ export const FizkStateUpdateRollup = ZkProgram({
         publicInput.fizkTokenState.fizkTokenMapRoot.assertEquals(getRoot(privateInput.fizkTokenMap));
 
         // apply updates
-        const newFizkTokenMapRoot = FizkTokenMap.applyVerifiedUpdates(privateInput.fizkTokenMap, privateInput.proof.publicOutput.verifiedFizkTokenUpdates);
+        const newFizkTokenMapRoot = FizkTokenMap.applyVerifiedUpdates(privateInput.fizkTokenMap, privateInput.proof.publicOutput.verifiedFizkTokenUpdates, publicInput.blockInfoState.previousBlockClosureTimestamp, publicInput.governanceState.globalGovRewardIndex);
 
         // add output commitment to zkusd map
         const outputNoteCommitments = privateInput.proof.publicOutput.outputNoteCommitments;

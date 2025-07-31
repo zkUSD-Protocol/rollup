@@ -11,39 +11,10 @@ import yaml from 'js-yaml';
 // ─────────────────────────────────────────────────────────────────────────────
 // Program imports – keep exactly the same paths you already use
 // ─────────────────────────────────────────────────────────────────────────────
-import { GovernanceAction1Intent }   from './intents/governance/action1.js';
-import { GovernanceAction2Intent }   from './intents/governance/action2.js';
 // import { ZkusdRollup }               from './rollup2.js';
-import { CreateVaultComputation }    from './computation/create-vault.js';
-import { BlockCloseComputation }     from './computation/close-block.js';
-import { DepositCollateralComputation }     from './computation/deposit-collateral.js';
-import { RedeemCollateralComputation }     from './computation/redeem-collateral.js';
-import { BridgeOutComputation }     from './computation/bridge-out.js';
-import { BridgeInComputation }     from './computation/bridge-in.js';
-import { BurnComputation }     from './computation/burn.js';
-import { MintComputation }     from './computation/mint.js';
-import { LiquidateComputation }     from './computation/liquidate.js';
-import { TransferComputation }     from './computation/transfer.js';
-import { GovCreateProposalComputation }     from './computation/gov-create-proposal.js';
-import { GovVetoProposalComputation }     from './computation/gov-veto-proposal.js';
-import { GovExecuteUpdateComputation }     from './computation/gov-execute-update.js';
-import { OracleBlockDataProgram }    from './intents/block-close-intent.js';
-import { GovActionIntent }           from './intents/governance/wrapper.js';
-import { BridgeIntent }              from './intents/bridge-out.js';
-import { CreateVaultIntent }         from './intents/create-vault.js';
-import { DepositIntent }             from './intents/deposit.js';
-import { MintIntent }                from './intents/mint.js';
-import { BurnIntent }                from './intents/burn.js';
-import { LiquidateIntent }           from './intents/liquidate.js';
-import { RedeemIntent }              from './intents/redeem.js';
-import { BridgeInIntent }            from './intents/bridge-in.js';
-import { ZkusdBridgeState }          from './prove/observer/zkusd-bridge-state.js';
-import { TransferIntent }            from './intents/transfer.js';
-import { ProveCollateralIO }         from './domain/bridging/prove-collateral-io.js';
-import { Cache } from 'o1js';
 import console from 'node:console';
-import { FizkRollup } from './rollup3.js';
-import { FizkStateUpdateRollup } from './rollup/state-update-rollup.js';
+import { OracleBlockDataProgram } from '../intents/block-close-intent.js';
+import { FizkStateUpdateRollup } from '../rollup/state-update-rollup';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // List of programs to compile (same identifiers & order as before)
