@@ -6,6 +6,8 @@ import { CouncilMemberMap } from "./council-member-map.js";
 import { BridgeMap } from "../bridging/bridge-map.js";
 import { VkhMap } from "./vkh-map.js";
 
+// todo should it also gather all the parameters or be 
+// focused on the state of the governance only?
 export class GovernanceState extends Struct({
     forp: UInt64,
     
@@ -19,7 +21,6 @@ export class GovernanceState extends Struct({
     minaSettlementKey: PublicKey,
 
     globalGovRewardIndex: UInt64,
-    totalAmountStaked: UInt64,
 
     proposalMapRoot: MerkleRoot<ProposalMap>,
     lastProposalIndex: Field,
@@ -29,6 +30,10 @@ export class GovernanceState extends Struct({
     observersMultiSigTreshold: UInt32,
 
     rollupProgramsVkhMapRoot: MerkleRoot<VkhMap>,
+
+    // stake related
+    totalAmountStaked: UInt64,
+    stakeWithdrawalFee: UInt64,
     
 }) {
     toFields(): Field[] {
@@ -49,6 +54,8 @@ export class GovernanceState extends Struct({
             this.bridgeMapRoot.root,
             this.observersMultiSigTreshold.value,
             this.rollupProgramsVkhMapRoot.root,
+            this.totalAmountStaked.value,
+            this.stakeWithdrawalFee.value,
         ];
     }
 
@@ -63,13 +70,14 @@ export class GovernanceState extends Struct({
             proposalSnapshotValidityMillis: update.proposalSnapshotValidityMillis,
             minaSettlementKey: update.minaSettlementKey,
             globalGovRewardIndex: update.globalGovRewardIndex,
-            totalAmountStaked: this.totalAmountStaked,
             proposalMapRoot: this.proposalMapRoot,
             lastProposalIndex: this.lastProposalIndex,
             stakeMapRoot: this.stakeMapRoot,
             bridgeMapRoot: this.bridgeMapRoot,
             observersMultiSigTreshold: this.observersMultiSigTreshold,
             rollupProgramsVkhMapRoot: this.rollupProgramsVkhMapRoot,
+            totalAmountStaked: this.totalAmountStaked,
+            stakeWithdrawalFee: this.stakeWithdrawalFee,
         });
     }
 }
@@ -90,6 +98,8 @@ export class GovernanceStateUpdate extends Struct({
     bridgeMapRoot: MerkleRoot<BridgeMap>,
     observersMultiSigTreshold: UInt8,
     rollupProgramsVkhMapRoot: MerkleRoot<VkhMap>,
+    totalAmountStaked: UInt64,
+    stakeWithdrawalFee: UInt64,
 }) {
     toFields(): Field[] {
         return [
@@ -105,6 +115,8 @@ export class GovernanceStateUpdate extends Struct({
             this.bridgeMapRoot.root,
             this.observersMultiSigTreshold.value,
             this.rollupProgramsVkhMapRoot.root,
+            this.totalAmountStaked.value,
+            this.stakeWithdrawalFee.value,
         ];
     }
 }

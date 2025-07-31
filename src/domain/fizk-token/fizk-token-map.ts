@@ -6,9 +6,10 @@ import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
 import { MerkleRoot } from '../../core/map/merkle-root.js';
 import { FizkTokenState } from './fizk-token-state.js';
-import { FizkTokenUpdate, FizkTokenUpdates } from './fizk-token-update.js';
-import { Struct } from 'o1js';
+import { FizkAddStakeUpdate, FizkTokenUpdate, FizkTokenUpdates } from './fizk-token-update.js';
+import { Bool, Provable, Struct, UInt64 } from 'o1js';
 import { FizkMapValue } from './fizk-map-value.js';
+import { UInt50 } from '../../core/uint50.js';
 
 const FIZK_MAP_HEIGHT = 52; // 4,503,599,627,370,496 - 4.5 quadrillion
 
@@ -65,7 +66,7 @@ export class FizkTokenMap extends FizkTokenMapBase {
     map.root.assertEquals(verifiedUpdates.applicableMapRoot.root);
     for(let i = 0; i < VerifiedFizkTokenUpdates.Length; i++){
       const update = verifiedUpdates.updates.updates[i];
-      map.setIf(update.isNotDummy, update.address.address, FizkMapValue.pack(update.value));
+      map.setIf(update.isNotDummy, update.address.value, FizkMapValue.pack(update.value));
     }
     return new MerkleRoot({ root: map.root });
   }
@@ -85,4 +86,28 @@ export class PrunedFizkTokenMap extends PrunedMapBase {
     }
     return new PrunedFizkTokenMap(data);
   }
+}
+
+export class ClonedFizkTokenMap extends FizkTokenMap {
+  
+
+  static verifyAddStakeUpdate(map: ClonedFizkTokenMap, update: FizkAddStakeUpdate, currentGlobalGovRewardIndex: UInt64) : VerifiedFizkTokenUpdates {
+
+    // must exist, because otherwise unstaked amount is zero so you cannot add anything to stake anyway
+    const currentValue = FizkMapValue.unpack(map.get(update.to.value));
+
+    currentValue.amountStaked = currentValue.amountStaked.add(update.amount);
+    // asserts unstaked is more than the change  
+    currentValue.amountUnstaked = UInt50.verifySub(currentValue.amountUnstaked, update.amount);
+    currentValue.globalGovRewardIndexSnapshot = currentGlobalGovRewardIndex;
+
+    const ret = VerifiedFizkTokenUpdates.empty();
+    ret.applicableMapRoot = new MerkleRoot({ root: map.root });
+    ret.updates.updates[0] = FizkTokenUpdate.empty();
+    ret.updates.updates[0].isNotDummy = Bool(true);
+    ret.updates.updates[0].address = update.to;
+    ret.updates.updates[0].value = currentValue;
+      
+    return ret;
+  } 
 }

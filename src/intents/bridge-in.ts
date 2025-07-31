@@ -17,7 +17,7 @@ import { BridgedAddress } from '../domain/bridging/bridged-address.js';
 import { BridgeMap } from '../domain/bridging/bridge-map.js';
 import { MerkleRoot } from '../core/map/merkle-root.js';
 import { ObserverMap } from '../domain/enclave/observer-map.js';
-import { ObserverBridgeStateAttestationProof } from '../prove/observer/zkusd-bridge-state.js';
+import { ObserverBridgeStateAttestationProof } from '../observer-proving/zkusd-bridge-state.js';
 
 export class BridgeInIntentPreconditions extends Struct({
   observerMapRoot: MerkleRoot<ObserverMap>,

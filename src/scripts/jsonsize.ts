@@ -1,5 +1,5 @@
 import { Field } from "o1js";
-import { GovernanceAction1Intent } from "./intents/governance/action1.js";
+import { GovernanceAction1Intent } from "../intents/governance/action1.js";
 
 // Simple function to measure JSON size
 function measureJsonSize(obj: any): number {

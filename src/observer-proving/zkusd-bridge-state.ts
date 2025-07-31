@@ -1,9 +1,9 @@
 import { Bool, Field, Poseidon, PrivateKey, Provable, PublicKey, Signature, Struct, UInt32, ZkProgram } from "o1js";
-import { ObserverMap } from "../../domain/enclave/observer-map.js";
-import { getRoot, MerkleRoot } from "../../core/map/merkle-root.js";
-import { BridgeIoAccumulators } from "../../domain/bridging/bridge-io-accumulators.js";
-import { BridgedAddress } from "../../domain/bridging/bridged-address.js";
-import { BridgeCode } from "../../domain/bridging/bridge.js";
+import { ObserverMap } from "../domain/enclave/observer-map.js";
+import { getRoot, MerkleRoot } from "../core/map/merkle-root.js";
+import { BridgeIoAccumulators } from "../domain/bridging/bridge-io-accumulators.js";
+import { BridgedAddress } from "../domain/bridging/bridged-address.js";
+import { BridgeCode } from "../domain/bridging/bridge.js";
 
 
 export class ObserverBridgeStateAttestationPayload extends Struct({

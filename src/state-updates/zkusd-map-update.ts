@@ -10,4 +10,11 @@ export class ZkusdMapUpdate extends Struct({
 export class ZkusdMapUpdateSingleOutput extends Struct({
   nullifiers: Nullifiers,
   outputNoteCommitment: OutputNoteCommitment,
-}) {}
+}) {
+  static empty(): ZkusdMapUpdateSingleOutput {
+    return new ZkusdMapUpdateSingleOutput({
+      nullifiers: Nullifiers.empty(),
+      outputNoteCommitment: OutputNoteCommitment.dummy(),
+    });
+  }
+}

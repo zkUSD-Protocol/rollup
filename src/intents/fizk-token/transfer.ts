@@ -19,7 +19,7 @@ export function transferFizkToken(publicInput: FizkTokenTransferPreconditions, p
     const signedMessage: Field[] = [
         FizkTokenTransferIntentKey,
         currentOperationNonce.value,
-        toAddress.address,
+        toAddress.value,
         amount.value,
     ];
 

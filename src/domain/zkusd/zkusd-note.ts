@@ -184,7 +184,7 @@ export class OutputNotes extends Struct({
 const OutputNoteCommitmentSalt = Field.from(13007545258224062508603495747750390692157031942398900146434546090204384591561n); 
 export class OutputNoteCommitment extends Struct({
   commitment: Field,
-  isDummy: Bool,
+  isDummy: Bool, // TODO change to is not dummy
 }) {
   static dummy(): OutputNoteCommitment {
     return new OutputNoteCommitment({

@@ -38,14 +38,15 @@ export class ZkUsdMap extends ZkUsdMapBase {
     return super.fromSerialized(data) as ZkUsdMap;
   }
   
-  static verifyAndUpdateSingleOutput(map: ZkUsdMap, state: ZkUsdState, update: ZkusdMapUpdateSingleOutput): MerkleRoot<ZkUsdMap> {
+  static verifyAndUpdateSingleOutput(map: ZkUsdMap, root: MerkleRoot<ZkUsdMap>, update: ZkusdMapUpdateSingleOutput): MerkleRoot<ZkUsdMap> {
     const { nullifiers, outputNoteCommitment } = update;
     
     // the map root should be the same as the zkusd live root
-    getRoot(map).assertEquals(state.zkUsdMapRoot);
+    getRoot(map).assertEquals(root);
 
     for (let i = 0; i < MAX_INPUT_NOTE_COUNT; i++) {
       const nullifier = nullifiers.nullifiers[i];
+      // NOTE: if some one is able to insert a nullifier for a dummy note nullifier then it will break the system
       map.assertNotIncluded(nullifier.nullifier);
       map.setIf(
         nullifier.isDummy.not(),
@@ -64,11 +65,11 @@ export class ZkUsdMap extends ZkUsdMapBase {
       return getRoot(map);
   }
 
-  static verifyAndUpdate(map: ZkUsdMap, state: ZkUsdState, update: ZkUsdUpdate): MerkleRoot<ZkUsdMap> {
+  static verifyAndUpdate(map: ZkUsdMap, root: MerkleRoot<ZkUsdMap>, update: ZkUsdUpdate): MerkleRoot<ZkUsdMap> {
         const { nullifiers, outputNoteCommitments } = update;
         
         // the map root should be the same as the zkusd live root
-        getRoot(map).assertEquals(state.zkUsdMapRoot);
+        getRoot(map).assertEquals(root);
 
         for (let i = 0; i < MAX_INPUT_NOTE_COUNT; i++) {
           const nullifier = nullifiers.nullifiers[i];

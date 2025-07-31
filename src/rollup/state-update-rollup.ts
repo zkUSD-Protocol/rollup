@@ -33,9 +33,11 @@ import { getRoot } from "../core/map/merkle-root.js";
 import { LiquidateIntentDynamicProof } from "../intents/liquidate.js";
 import { RedeemCollateralUpdate } from "../domain/vault/vault-update.js";
 import { BridgeOutIntentDynamicProof } from "../intents/bridge-out.js";
-import { VkhMap } from "../domain/governance/vkh-map.js";
+import { ProofVerification, verifyDynamicProof, VkhMap } from "../domain/governance/vkh-map.js";
 import { FizkTokenUpdates } from "../domain/fizk-token/fizk-token-update.js";
 import { FizkTokenMap, VerifiedFizkTokenUpdates } from "../domain/fizk-token/fizk-token-map.js";
+import { FizkWrapupPreconditions, FizkWrapupPublicOutput } from "../intents/fizk-token/wrapper.js";
+import { ZkusdMapUpdate, ZkusdMapUpdateSingleOutput } from "../state-updates/zkusd-map-update.js";
 
 function log(msg: string, v?: unknown) {
 Provable.log(msg);
@@ -124,12 +126,6 @@ function verifyProposalSnapshot(
   currentTimestamp.isGreaterThanBy(snapshotTimestamp, snapshotValidityMillis).assertFalse();
 }
 
-export class ProofVerification extends Struct({
-  verificationKey: VerificationKey,
-  vkhKey: Field,
-  vkhMap: VkhMap,
-}) {}
-
 export class GovExecuteUpdatePrivateInput extends Struct({
   proof: GovActionIntentDynamicProof,
   liveProposalMap: ProposalMap,
@@ -153,13 +149,10 @@ export class GovVetoProposalPrivateInput extends Struct({
 	proofVerification: ProofVerification,
 }) {}
 
-export class FizkWrapupPreconditions extends Struct({
-  rollupStateRoot: Field, // TODO, contain only fields it depends on
-}) {}
 
-export class FizkTokenUpdateWrapupDynamicProof extends DynamicProof<FizkWrapupPreconditions, VerifiedFizkTokenUpdates> {
+export class FizkTokenUpdateWrapupDynamicProof extends DynamicProof<FizkWrapupPreconditions, FizkWrapupPublicOutput> {
   static publicInputType = FizkWrapupPreconditions;
-  static publicOutputType = VerifiedFizkTokenUpdates;
+  static publicOutputType = FizkWrapupPublicOutput;
   static maxProofsVerified = 0 as const;
 
   static featureFlags = FeatureFlags.allNone; // should allow FizkTokenUpdateWrapup proofs
@@ -169,6 +162,7 @@ export class FizkTokenUpdateWrapupPrivateInput extends Struct({
 	proof: FizkTokenUpdateWrapupDynamicProof,
   proofVerification: ProofVerification,
   fizkTokenMap: FizkTokenMap,
+  zkUsdMap: ZkUsdMap,
 }) {}
 
 export class CreateVaultPrivateInput extends Struct({
@@ -251,12 +245,19 @@ export const FizkStateUpdateRollup = ZkProgram({
         privateInput: FizkTokenUpdateWrapupPrivateInput & {
           proofVerification: {verificationKey: VerificationKey, vkhKey: Field, vkhMap: VkhMap},
           fizkTokenMap: FizkTokenMap,
+          zkUsdMap: ZkUsdMap,
         }
       ): Promise<{ publicOutput: FizkRollupState }> {
+        // ----- verify proof preconditions
+        const preconditions = privateInput.proof.publicInput;
+        preconditions.totalAmountStaked.assertEquals(publicInput.governanceState.totalAmountStaked);
+        // todo this should try both the previous block historical state or the current block historical state
+        // alternatively it could be moved to the wrapup
+        preconditions.currentRewardIndex.assertEquals(publicInput.governanceState.globalGovRewardIndex);
+        preconditions.vkhMapRoot.assertEquals(publicInput.governanceState.rollupProgramsVkhMapRoot);
+
         // verify proof
-        privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
-        publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
+        verifyDynamicProof(privateInput.proof, privateInput.proofVerification, publicInput.governanceState.rollupProgramsVkhMapRoot);
 
         // assert state equality 
         // TODO this is expensive may be we could use cheaper polynomial commitments for this (Silvana)
@@ -266,7 +267,15 @@ export const FizkStateUpdateRollup = ZkProgram({
         publicInput.fizkTokenState.fizkTokenMapRoot.assertEquals(getRoot(privateInput.fizkTokenMap));
 
         // apply updates
-        const newFizkTokenMapRoot = FizkTokenMap.applyVerifiedUpdates(privateInput.fizkTokenMap, privateInput.proof.publicOutput);
+        const newFizkTokenMapRoot = FizkTokenMap.applyVerifiedUpdates(privateInput.fizkTokenMap, privateInput.proof.publicOutput.verifiedFizkTokenUpdates);
+
+        // add output commitment to zkusd map
+        const outputNoteCommitments = privateInput.proof.publicOutput.outputNoteCommitments;
+        const zkusdMapUpdate: ZkusdMapUpdate = ZkusdMapUpdate.empty();
+        zkusdMapUpdate.outputNoteCommitments = outputNoteCommitments;
+        
+        const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(privateInput.zkUsdMap, publicInput.zkUsdState.zkUsdMapRoot, zkusdMapUpdate);
+        publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
 
         // update state
         publicInput.fizkTokenState.fizkTokenMapRoot = newFizkTokenMapRoot;
@@ -469,7 +478,7 @@ export const FizkStateUpdateRollup = ZkProgram({
         log("bridgeOut: update ZkUsdMap");
         const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(
           privateInput.zkusdMap,
-          publicInput.zkUsdState,
+          publicInput.zkUsdState.zkUsdMapRoot,
           privateInput.proof.publicOutput.zkusdMapUpdate,
         );
         publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
@@ -541,7 +550,7 @@ export const FizkStateUpdateRollup = ZkProgram({
         log("bridgeIn: update ZkUsdMap");
         const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(
           privateInput.zkusdMap,
-          publicInput.zkUsdState,
+          publicInput.zkUsdState.zkUsdMapRoot,
           privateInput.proof.publicOutput.zkusdMapUpdate,
         );
         publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
@@ -599,7 +608,7 @@ export const FizkStateUpdateRollup = ZkProgram({
         log("burn: update ZkUsdMap");
         const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(
           privateInput.zkusdMap,
-          publicInput.zkUsdState,
+          publicInput.zkUsdState.zkUsdMapRoot,
           privateInput.proof.publicOutput.zkusdMapUpdate,
         );
         publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
@@ -679,7 +688,7 @@ export const FizkStateUpdateRollup = ZkProgram({
         log("liquidate: update ZkUsdMap root");
         const newZkusdMapRoot = ZkUsdMap.verifyAndUpdateSingleOutput(
           privateInput.zkusdMap,
-          publicInput.zkUsdState,
+          publicInput.zkUsdState.zkUsdMapRoot,
           privateInput.proof.publicOutput.zkusdBurnUpdate,
         );
         publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
@@ -776,7 +785,7 @@ export const FizkStateUpdateRollup = ZkProgram({
         log("mint: update ZkUsdMap");
         const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(
           privateInput.zkusdMap,
-          publicInput.zkUsdState,
+          publicInput.zkUsdState.zkUsdMapRoot,
           privateInput.proof.publicOutput.zkusdMapUpdate,
         );
         publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
@@ -824,7 +833,7 @@ export const FizkStateUpdateRollup = ZkProgram({
         log("transfer: update ZkUsdMap");
         const newZkusdMapRoot = ZkUsdMap.verifyAndUpdate(
           privateInput.zkusdMap,
-          publicInput.zkUsdState,
+          publicInput.zkUsdState.zkUsdMapRoot,
           privateInput.proof.publicOutput.zkusdMapUpdate,
         );
         publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;

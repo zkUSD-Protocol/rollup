@@ -4,7 +4,8 @@ import {
 } from '../../core/map/serializable-indexed-map.js';
 import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
-import { MerkleRoot } from '../../core/map/merkle-root.js';
+import { getRoot, MerkleRoot } from '../../core/map/merkle-root.js';
+import { DynamicProof, Field, Struct, VerificationKey } from 'o1js';
 
 const VKH_MAP_HEIGHT = 10; // 512
 
@@ -57,4 +58,24 @@ export class PrunedVkhMap extends PrunedMapBase {
     }
     return new PrunedVkhMap(data);
   }
+}
+
+
+export class ProofVerification extends Struct({
+  verificationKey: VerificationKey,
+  vkhKey: Field,
+  vkhMap: VkhMap,
+}) {}
+
+// verifies a dynamic proof against a vkh map with a given root
+export function verifyDynamicProof<
+  T extends DynamicProof<any, any>
+>(
+  proof: T,
+  proofVerification: ProofVerification, 
+  assertedVkhRoot: MerkleRoot<VkhMap>,
+): void {
+  proof.verify(proofVerification.verificationKey);
+  proofVerification.vkhMap.get(proofVerification.vkhKey).assertEquals(proofVerification.verificationKey.hash);
+  assertedVkhRoot.assertEquals(getRoot(proofVerification.vkhMap) as MerkleRoot<VkhMap>);
 }
