@@ -83,9 +83,7 @@ export const FizkTokenIntentWrapper = ZkProgram({
                 
                 const verifiedFizkTokenUpdates = ClonedFizkTokenMap.verifyTransfer(privateInput.fizkTokenMap as ClonedFizkTokenMap, transferUpdate);
                 
-                const totalAmountStaked: UInt64 = uint50toUint64(amountStaked).add(uint50toUint64(transferUpdate.amount));
-                
-                return { publicOutput: { verifiedFizkTokenUpdates, outputNoteCommitments, totalAmountStaked } };
+                return { publicOutput: { verifiedFizkTokenUpdates, outputNoteCommitments, totalAmountStaked: publicInput.totalAmountStaked } };
             }
         },
 
