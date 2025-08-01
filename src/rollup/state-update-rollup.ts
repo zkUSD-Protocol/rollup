@@ -13,7 +13,7 @@ import {
 } from "../intents/governance/wrapper.js";
 import { ProposalMap } from "../domain/governance/proposal-map.js";
 import { Timestamp } from "../core/timestamp.js";
-import { CreateVaultIntentDynamicProof, CreateVaultIntentProof } from "../intents/create-vault.js";
+import { CreateVaultIntentDynamicProof } from "../intents/create-vault.js";
 import { VaultMap } from "../domain/vault/vault-map.js";
 import { VaultParameters } from "../domain/vault/vault.js";
 import { CollateralType } from "../domain/vault/vault-collateral-type.js";
@@ -34,10 +34,9 @@ import { LiquidateIntentDynamicProof } from "../intents/liquidate.js";
 import { RedeemCollateralUpdate } from "../domain/vault/vault-update.js";
 import { BridgeOutIntentDynamicProof } from "../intents/bridge-out.js";
 import { ProofVerification, verifyDynamicProof, VkhMap } from "../domain/governance/vkh-map.js";
-import { FizkTokenUpdates } from "../domain/fizk-token/fizk-token-update.js";
-import { FizkTokenMap, VerifiedFizkTokenUpdates } from "../domain/fizk-token/fizk-token-map.js";
+import { FizkTokenMap } from "../domain/fizk-token/fizk-token-map.js";
 import { FizkWrapupPreconditions, FizkWrapupPublicOutput } from "../intents/fizk-token/wrapper.js";
-import { ZkusdMapUpdate, ZkusdMapUpdateSingleOutput } from "../state-updates/zkusd-map-update.js";
+import { ZkusdMapUpdate } from "../state-updates/zkusd-map-update.js";
 
 function log(msg: string, v?: unknown) {
 Provable.log(msg);
@@ -735,11 +734,8 @@ export const FizkStateUpdateRollup = ZkProgram({
           proofVerification: {verificationKey: VerificationKey, intentVkhKey: Field, vkhMap: VkhMap}
         },
       ): Promise<{ publicOutput: FizkRollupState }> {
-        log("mint: before proof.verify");
-        privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
-        publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
-        log("mint: after proof.verify");
+        
+        verifyDynamicProof(privateInput.proof, privateInput.proofVerification, publicInput.governanceState.rollupProgramsVkhMapRoot);
 
         const vaultUpdate = privateInput.proof.publicOutput.vaultUpdate;
         const currentBlockNumber = publicInput.blockInfoState.blockNumber;
@@ -750,6 +746,8 @@ export const FizkStateUpdateRollup = ZkProgram({
           publicInput.vaultState.suiVaultTypeState.priceNanoUsd,
           publicInput.vaultState.minaVaultTypeState.priceNanoUsd,
         );
+        // verify proof preconditions
+        privateInput.proof.publicInput.minimalCollateralPriceNanoUsd.assertLessThanOrEqual(collateralPriceNanoUsd);
 
         const currentStateCondition = currentBlockNumber
           .equals(priceBlockNumber)

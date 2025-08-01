@@ -15,12 +15,10 @@ import { VaultAddress } from '../domain/vault/vault-address.js';
 import { ZkusdMapUpdate } from '../state-updates/zkusd-map-update.js';
 import { CollateralType } from '../domain/vault/vault-collateral-type.js';
 import { MintIntentUpdate } from '../domain/vault/vault-update.js';
-import { FizkRollupState } from '../domain/rollup-state.js';
+
 
 export class MintIntentPreconditions extends Struct({
-    collateralPriceNanoUsd: UInt64,
-    rollupStateHash: Field,
-    rollupStateBlockNumber: UInt64,
+    minimalCollateralPriceNanoUsd: UInt64,
 }) {}
 
 export class MintIntentOutput extends Struct({
@@ -29,11 +27,10 @@ export class MintIntentOutput extends Struct({
 }) {}
 
 export class MintIntentPrivateInput extends Struct({
-  note: Note,
+  note: Note, // the uniqueness of the notes prevents replaying the intent.
   collateralType: CollateralType,
   ownerSignature: Signature,
   ownerPublicKey: PublicKey,
-  rollupState: FizkRollupState,
 }) {}
 
 const MintIntentKey = Field.from('42190241091284091824091811240') // TODO replace with something more structured
@@ -53,12 +50,8 @@ export const MintIntent = ZkProgram({
           note,
           collateralType,
           ownerPublicKey,
-          rollupState,
           ownerSignature,
         } = privateInput;
-
-        // verify rollup state hash
-        Poseidon.hash(rollupState.toFields()).assertEquals(publicInput.rollupStateHash);
 
         // verify signature
         const message = [MintIntentKey, Note.hash(note)]
