@@ -1,18 +1,17 @@
-import { Bool, Provable, Struct, UInt64 } from "o1js";
+import { Bool, Provable, Struct, } from "o1js";
 import { FizkAddress } from "./fizk-address.js";
-import { FizkMapValue, FizkMapValueUpdate } from "./fizk-map-value.js";
-import { PublicKey } from "o1js";
-import { UInt50 } from "../../core/uint50.js";
+import { FizkMapValueUpdate } from "./fizk-map-value.js";
+import { UInt50, } from "../../core/uint50.js";
 
 export class FizkTransferUpdate extends Struct({
     from: FizkAddress,
     to: FizkAddress,
-    amount: UInt64,
+    amount: UInt50,
 }) {}
 
 export class FizkMintUpdate extends Struct({
     to: FizkAddress,
-    amount: UInt64,
+    amount: UInt50,
 }) {}
 
 export class FizkAddStakeUpdate extends Struct({

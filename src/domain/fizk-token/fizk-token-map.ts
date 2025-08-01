@@ -6,7 +6,7 @@ import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
 import { MerkleRoot } from '../../core/map/merkle-root.js';
 import { FizkTokenState } from './fizk-token-state.js';
-import { FizkAddStakeUpdate, FizkModifyWithdrawalUpdate, FizkTokenUpdate, FizkTokenUpdates } from './fizk-token-update.js';
+import { FizkAddStakeUpdate, FizkModifyWithdrawalUpdate, FizkTokenUpdate, FizkTokenUpdates, FizkTransferUpdate } from './fizk-token-update.js';
 import { Bool, Provable, Struct, UInt64 } from 'o1js';
 import { FizkMapValue, FizkMapValueUpdate } from './fizk-map-value.js';
 import { UInt50 } from '../../core/uint50.js';
@@ -91,6 +91,26 @@ export class PrunedFizkTokenMap extends PrunedMapBase {
 }
 
 export class ClonedFizkTokenMap extends FizkTokenMap {
+
+  static verifyTransfer(map: ClonedFizkTokenMap, update: FizkTransferUpdate) : VerifiedFizkTokenUpdates {
+    const senderCurrentValue = FizkMapValue.toUpdate(FizkMapValue.unpack(map.get(update.from.value)));
+    // receiver may not exist yet
+    const receiverFldValueOption = map.getOption(update.to.value);
+    const receiverCurrentValue = Provable.if(receiverFldValueOption.isSome , FizkMapValue.toUpdate(FizkMapValue.unpack(receiverFldValueOption.value)), FizkMapValueUpdate.empty());
+    
+    senderCurrentValue.newAmountUnstaked = UInt50.verifySub(senderCurrentValue.newAmountUnstaked, update.amount);
+    receiverCurrentValue.newAmountUnstaked = receiverCurrentValue.newAmountUnstaked.add(update.amount);
+    const ret = VerifiedFizkTokenUpdates.empty();
+    ret.updates.updates[0] = FizkTokenUpdate.empty();
+    ret.updates.updates[0].isNotDummy = Bool(true);
+    ret.updates.updates[0].address = update.from;
+    ret.updates.updates[0].value = senderCurrentValue;
+    ret.updates.updates[1] = FizkTokenUpdate.empty();
+    ret.updates.updates[1].isNotDummy = Bool(true);
+    ret.updates.updates[1].address = update.to;
+    ret.updates.updates[1].value = receiverCurrentValue;
+    return ret;
+  }
   
 
   // moves fizk from the unstaked state to the staked state
@@ -100,9 +120,9 @@ export class ClonedFizkTokenMap extends FizkTokenMap {
     const currentValue = FizkMapValue.unpack(map.get(update.to.value));
 
     const updateData: FizkMapValueUpdate = new FizkMapValueUpdate({
-      amountStaked: update.amount,
-      amountUnstaked: currentValue.amountUnstaked.add(update.amount),
-      amountPendingUnlock: UInt50.verifySub(currentValue.amountPendingUnlock, update.amount),
+      newAmountStaked: update.amount,
+      newAmountUnstaked: currentValue.amountUnstaked.add(update.amount),
+      newAmountPendingUnlock: UInt50.verifySub(currentValue.amountPendingUnlock, update.amount),
     });
 
     const ret = VerifiedFizkTokenUpdates.empty();
@@ -123,15 +143,15 @@ export class ClonedFizkTokenMap extends FizkTokenMap {
 
     const currentValue = FizkMapValue.toUpdate(FizkMapValue.unpack(map.get(update.target.value)));
     
-    const stakedBiggerThanDelta = currentValue.amountStaked.value.greaterThanOrEqual(update.amount.value);
-    const pendingUnlockBiggerThanDelta = currentValue.amountPendingUnlock.value.greaterThanOrEqual(update.amount.value);
+    const stakedBiggerThanDelta = currentValue.newAmountStaked.value.greaterThanOrEqual(update.amount.value);
+    const pendingUnlockBiggerThanDelta = currentValue.newAmountPendingUnlock.value.greaterThanOrEqual(update.amount.value);
     
     const isValid = Provable.if(update.isAdd, stakedBiggerThanDelta, pendingUnlockBiggerThanDelta);
 
     const updateData: FizkMapValueUpdate = new FizkMapValueUpdate({
-      amountPendingUnlock: Provable.if(update.isAdd, currentValue.amountPendingUnlock.add(update.amount), UInt50.verifySub(currentValue.amountPendingUnlock, update.amount)),
-      amountStaked: Provable.if(update.isAdd, currentValue.amountStaked.add(update.amount), UInt50.verifySub(currentValue.amountStaked, update.amount)),
-      amountUnstaked: currentValue.amountUnstaked,
+      newAmountPendingUnlock: Provable.if(update.isAdd, currentValue.newAmountPendingUnlock.add(update.amount), UInt50.verifySub(currentValue.newAmountPendingUnlock, update.amount)),
+      newAmountStaked: Provable.if(update.isAdd, currentValue.newAmountStaked.add(update.amount), UInt50.verifySub(currentValue.newAmountStaked, update.amount)),
+      newAmountUnstaked: currentValue.newAmountUnstaked,
     });
 
     const ret = VerifiedFizkTokenUpdates.empty();
