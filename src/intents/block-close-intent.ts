@@ -57,6 +57,7 @@ export class VaultTypeUpdate extends Struct({
 export class OracleBlockDataProofPublicOutput extends Struct({
     minaVaultTypeUpdate: VaultTypeUpdate,
     suiVaultTypeUpdate: VaultTypeUpdate,
+    fizkPriceNanoUsd: UInt64,
     timestamp: Timestamp,
 }) {}
 

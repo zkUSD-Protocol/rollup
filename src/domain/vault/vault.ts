@@ -9,6 +9,7 @@ import {
 } from 'o1js';
 import { VaultState } from './vault-state.js';
 import { CollateralType } from './vault-collateral-type.js';
+import { InterBlockUInt64 } from '../../core/inter-block.js';
 
 // Errors
 export const VaultErrors = {
@@ -220,7 +221,7 @@ export function Vault(params: VaultParameters) {
 
 export class VaultTypeData extends Struct({
   parameters: VaultParameters,
-  priceNanoUsd: UInt64,
+  priceNanoUsd: InterBlockUInt64,
   globalAccumulativeInterestRateScaled: UInt64,
   lastUpdateTimestampSec: UInt64,
   totalNda: UInt64,
@@ -229,7 +230,8 @@ export class VaultTypeData extends Struct({
   toFields(): Field[] {
     return [
       ...this.parameters.toFields(),
-      this.priceNanoUsd.value,
+      this.priceNanoUsd.previous.value,
+      this.priceNanoUsd.current.value,
       ...this.globalAccumulativeInterestRateScaled.toFields(),
       this.lastUpdateTimestampSec.value,
       this.totalNda.value,

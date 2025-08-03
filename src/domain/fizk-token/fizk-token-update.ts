@@ -19,6 +19,10 @@ export class FizkAddStakeUpdate extends Struct({
     amount: UInt50,
 }) {}
 
+export class FizkWithdrawUnlockedUpdate extends Struct({
+    target: FizkAddress,
+}) {}
+
 export class FizkModifyWithdrawalUpdate extends Struct({
     target: FizkAddress,
     amount: UInt50,

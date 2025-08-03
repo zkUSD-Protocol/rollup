@@ -50,8 +50,10 @@ export class Timestamp extends Struct({
         return new Timestamp({ timestampMs: UInt64.from(timestampMs) });
     }
 
-    static fromSeconds(timestampSeconds: number): Timestamp {
-        return new Timestamp({ timestampMs: UInt64.from(timestampSeconds * 1000) });
+    static fromSeconds(timestampSeconds: UInt64): Timestamp {
+        // assert less than 2^60 seconds
+        timestampSeconds.assertLessThan(UInt64.from(2n**60n));
+        return new Timestamp({ timestampMs: timestampSeconds.mul(UInt64.from(1000)) });
     }
 
     assertEquals(other: Timestamp) {

@@ -11,7 +11,7 @@ import { UInt50 } from "../../core/uint50";
 export class FizkTransferPreconditions extends Struct({
     totalAmountStaked: UInt64,
     globalGovRewardIndexSnapshot: UInt64,
-    amountStaked: UInt64, 
+    amountStaked: UInt50, 
     currentGlobalGovRewardIndex: UInt64, 
 }) {}
 
@@ -53,7 +53,7 @@ export const FizkTransfer = ZkProgram({
                 privateInput.signature.verify(privateInput.ownerPublicKey, message);
                 
                 // compute rewards
-                const rewards = computeRewards(publicInput.totalAmountStaked, publicInput.globalGovRewardIndexSnapshot, publicInput.amountStaked, publicInput.currentGlobalGovRewardIndex);
+                const rewards = computeRewards(publicInput.totalAmountStaked, publicInput.globalGovRewardIndexSnapshot, UInt50.toUInt64(publicInput.amountStaked), publicInput.currentGlobalGovRewardIndex);
                 
                 // check the rewards matches the note
                 rewards.assertEquals(privateInput.rewardOutputNote.amount);

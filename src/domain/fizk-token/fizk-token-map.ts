@@ -6,11 +6,12 @@ import { MapPruner, PruningRequest } from '../../core/map/map-pruner.js';
 import { PrunedMapBase } from '../../core/map/pruned-map-base.js'
 import { MerkleRoot } from '../../core/map/merkle-root.js';
 import { FizkTokenState } from './fizk-token-state.js';
-import { FizkAddStakeUpdate, FizkModifyWithdrawalUpdate, FizkTokenUpdate, FizkTokenUpdates, FizkTransferUpdate } from './fizk-token-update.js';
+import { FizkAddStakeUpdate, FizkMintUpdate, FizkModifyWithdrawalUpdate, FizkTokenUpdate, FizkTokenUpdates, FizkTransferUpdate, FizkWithdrawUnlockedUpdate } from './fizk-token-update.js';
 import { Bool, Provable, Struct, UInt64 } from 'o1js';
 import { FizkMapValue, FizkMapValueUpdate } from './fizk-map-value.js';
 import { UInt50 } from '../../core/uint50.js';
 import { Timestamp, Timestamp34 } from '../../core/timestamp.js';
+import { Ratio32 } from '../../core/ratio.js';
 
 const FIZK_MAP_HEIGHT = 52; // 4,503,599,627,370,496 - 4.5 quadrillion
 
@@ -72,49 +73,51 @@ export class FizkTokenMap extends FizkTokenMapBase {
     }
     return new MerkleRoot({ root: map.root });
   }
-}
 
-export class PrunedFizkTokenMap extends PrunedMapBase {
-  constructor(data: SerializableMapData) {
-    super(new FizkTokenMapBase(), data);
-  }
 
-  /**
-   * Create a PrunedFizkMap from serialized data
-   */
-  static fromSerialized(data: SerializableMapData): PrunedFizkTokenMap {
-    if (!FizkTokenMapBase.verifyIntegrity(data)) {
-      throw new Error('Invalid serialized data for PrunedFizkTokenMap');
-    }
-    return new PrunedFizkTokenMap(data);
-  }
-}
+  static verifyMintUpdate(map: FizkTokenMap, update: FizkMintUpdate) : VerifiedFizkTokenUpdates {
+    // get the current value which may not exist
+    const currentValueOption = map.getOption(update.to.value);
+    const currentValue = Provable.if(currentValueOption.isSome, FizkMapValue.toUpdate(FizkMapValue.unpack(currentValueOption.value)), FizkMapValueUpdate.empty());
+    currentValue.newAmountUnstaked = currentValue.newAmountUnstaked.add(update.amount);
 
-export class ClonedFizkTokenMap extends FizkTokenMap {
-
-  static verifyTransfer(map: ClonedFizkTokenMap, update: FizkTransferUpdate) : VerifiedFizkTokenUpdates {
-    const senderCurrentValue = FizkMapValue.toUpdate(FizkMapValue.unpack(map.get(update.from.value)));
-    // receiver may not exist yet
-    const receiverFldValueOption = map.getOption(update.to.value);
-    const receiverCurrentValue = Provable.if(receiverFldValueOption.isSome , FizkMapValue.toUpdate(FizkMapValue.unpack(receiverFldValueOption.value)), FizkMapValueUpdate.empty());
-    
-    senderCurrentValue.newAmountUnstaked = UInt50.verifySub(senderCurrentValue.newAmountUnstaked, update.amount);
-    receiverCurrentValue.newAmountUnstaked = receiverCurrentValue.newAmountUnstaked.add(update.amount);
     const ret = VerifiedFizkTokenUpdates.empty();
+    
+    ret.applicableMapRoot = new MerkleRoot({ root: map.root });
     ret.updates.updates[0] = FizkTokenUpdate.empty();
     ret.updates.updates[0].isNotDummy = Bool(true);
-    ret.updates.updates[0].address = update.from;
-    ret.updates.updates[0].value = senderCurrentValue;
-    ret.updates.updates[1] = FizkTokenUpdate.empty();
-    ret.updates.updates[1].isNotDummy = Bool(true);
-    ret.updates.updates[1].address = update.to;
-    ret.updates.updates[1].value = receiverCurrentValue;
+    ret.updates.updates[0].address = update.to;
+    ret.updates.updates[0].value = currentValue;
+      
     return ret;
   }
-  
+
+  static verifyWithdrawUnlockedUpdate(map: FizkTokenMap, update: FizkWithdrawUnlockedUpdate, currentTimestamp: Timestamp, stakeWithdrawalFee: Ratio32) : VerifiedFizkTokenUpdates {
+    // get the current value which may not exist
+    const currentValue = FizkMapValue.unpack(map.get(update.target.value));
+
+    // assert the timestamp
+    currentTimestamp.assertGreaterOrEqual(Timestamp.fromSeconds(currentValue.unlockTimestamp.timestampSeconds));
+
+    const ret = VerifiedFizkTokenUpdates.empty();
+
+    const unstakedDelta = Ratio32.mul50(stakeWithdrawalFee, currentValue.amountPendingUnlock);
+    
+    ret.applicableMapRoot = new MerkleRoot({ root: map.root });
+    ret.updates.updates[0] = FizkTokenUpdate.empty();
+    ret.updates.updates[0].isNotDummy = Bool(true);
+    ret.updates.updates[0].address = update.target;
+    ret.updates.updates[0].value = FizkMapValueUpdate.empty();
+    ret.updates.updates[0].value.newAmountUnstaked = currentValue.amountUnstaked.add(unstakedDelta);
+    ret.updates.updates[0].value.newAmountStaked = currentValue.amountStaked;
+    // is now zero
+    ret.updates.updates[0].value.newAmountPendingUnlock = UInt50.zero;
+      
+    return ret;
+  }
 
   // moves fizk from the unstaked state to the staked state
-  static verifyAddStakeUpdate(map: ClonedFizkTokenMap, update: FizkAddStakeUpdate) : VerifiedFizkTokenUpdates {
+  static verifyAddStakeUpdate(map: FizkTokenMap, update: FizkAddStakeUpdate) : VerifiedFizkTokenUpdates {
 
     // must exist, because otherwise unstaked amount is zero so you cannot add anything to stake anyway
     const currentValue = FizkMapValue.unpack(map.get(update.to.value));
@@ -136,7 +139,7 @@ export class ClonedFizkTokenMap extends FizkTokenMap {
   }
 
   // moves fizk from the staked state to the pending unlock state
-  static verifyModifyWithdrawalUpdate(map: ClonedFizkTokenMap, update: FizkModifyWithdrawalUpdate) : VerifiedFizkTokenUpdates {
+  static verifyModifyWithdrawalUpdate(map: FizkTokenMap, update: FizkModifyWithdrawalUpdate) : VerifiedFizkTokenUpdates {
     // the target must exist
     // the amount staked must be bigger than the change if the change is positive
     // if the change is negative then, the change must be lower than the pending amount
@@ -164,13 +167,44 @@ export class ClonedFizkTokenMap extends FizkTokenMap {
     return ret;
   }
     
+  static verifyTransfer(map: FizkTokenMap, update: FizkTransferUpdate) : VerifiedFizkTokenUpdates {
+    const senderCurrentValue = FizkMapValue.toUpdate(FizkMapValue.unpack(map.get(update.from.value)));
+    // receiver may not exist yet
+    const receiverFldValueOption = map.getOption(update.to.value);
+    const receiverCurrentValue = Provable.if(receiverFldValueOption.isSome , FizkMapValue.toUpdate(FizkMapValue.unpack(receiverFldValueOption.value)), FizkMapValueUpdate.empty());
+    
+    senderCurrentValue.newAmountUnstaked = UInt50.verifySub(senderCurrentValue.newAmountUnstaked, update.amount);
+    receiverCurrentValue.newAmountUnstaked = receiverCurrentValue.newAmountUnstaked.add(update.amount);
+    const ret = VerifiedFizkTokenUpdates.empty();
+    ret.updates.updates[0] = FizkTokenUpdate.empty();
+    ret.updates.updates[0].isNotDummy = Bool(true);
+    ret.updates.updates[0].address = update.from;
+    ret.updates.updates[0].value = senderCurrentValue;
+    ret.updates.updates[1] = FizkTokenUpdate.empty();
+    ret.updates.updates[1].isNotDummy = Bool(true);
+    ret.updates.updates[1].address = update.to;
+    ret.updates.updates[1].value = receiverCurrentValue;
+    return ret;
+  }
     
   
   
 
+    
+}
 
+export class PrunedFizkTokenMap extends PrunedMapBase {
+  constructor(data: SerializableMapData) {
+    super(new FizkTokenMapBase(), data);
+  }
 
-
-
-
+  /**
+   * Create a PrunedFizkMap from serialized data
+   */
+  static fromSerialized(data: SerializableMapData): PrunedFizkTokenMap {
+    if (!FizkTokenMapBase.verifyIntegrity(data)) {
+      throw new Error('Invalid serialized data for PrunedFizkTokenMap');
+    }
+    return new PrunedFizkTokenMap(data);
+  }
 }

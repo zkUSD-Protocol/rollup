@@ -99,7 +99,7 @@ export class VaultMap extends VaultMapBase {
    * @param collateralType The collateral type of the vault
    * @returns The unpacked Vault instance
    */
-  private static getVaultTypeData(
+  public static getVaultTypeData(
     state: ZkUsdVaults,
     collateralType: CollateralType
   ) {

@@ -1,10 +1,11 @@
 import { Field, PublicKey, Struct, UInt32, UInt64, UInt8 } from "o1js";
 import { ProposalMap } from "./proposal-map.js";
 import { MerkleRoot } from "../../core/map/merkle-root.js";
-import { StakeMap } from "./stake-map.js";
 import { CouncilMemberMap } from "./council-member-map.js";
 import { BridgeMap } from "../bridging/bridge-map.js";
 import { VkhMap } from "./vkh-map.js";
+import { Ratio32 } from "../../core/ratio.js";
+import { InterBlockUInt64 } from "../../core/inter-block.js";
 
 // todo should it also gather all the parameters or be 
 // focused on the state of the governance only?
@@ -20,11 +21,10 @@ export class GovernanceState extends Struct({
     
     minaSettlementKey: PublicKey,
 
-    globalGovRewardIndex: UInt64,
+    globalGovRewardIndex: InterBlockUInt64,
 
     proposalMapRoot: MerkleRoot<ProposalMap>,
     lastProposalIndex: Field,
-    stakeMapRoot: MerkleRoot<StakeMap>,
     
     bridgeMapRoot: MerkleRoot<BridgeMap>,
     observersMultiSigTreshold: UInt32,
@@ -33,10 +33,13 @@ export class GovernanceState extends Struct({
 
     // stake related
     totalAmountStaked: UInt64,
-    stakeWithdrawalFee: UInt64,
+    stakeWithdrawalFee: Ratio32,
     
 }) {
     toFields(): Field[] {
+        // Ensure globalGovRewardIndex is properly typed as InterBlockUInt64
+        const globalGovRewardIndex = this.globalGovRewardIndex as { previous: UInt64, current: UInt64 };
+        
         return [
             this.forp.value,
             this.councilMembersMerkleRoot.root,
@@ -46,16 +49,16 @@ export class GovernanceState extends Struct({
             this.proposalExecutionDelayMillis.value,
             this.proposalSnapshotValidityMillis.value,
             ...this.minaSettlementKey.toFields(),
-            this.globalGovRewardIndex.value,
+            globalGovRewardIndex.previous.value,
+            globalGovRewardIndex.current.value,
             this.totalAmountStaked.value,
             this.proposalMapRoot.root,
             this.lastProposalIndex,
-            this.stakeMapRoot.root,
             this.bridgeMapRoot.root,
             this.observersMultiSigTreshold.value,
             this.rollupProgramsVkhMapRoot.root,
             this.totalAmountStaked.value,
-            this.stakeWithdrawalFee.value,
+            this.stakeWithdrawalFee.num.value,
         ];
     }
 
@@ -72,7 +75,6 @@ export class GovernanceState extends Struct({
             globalGovRewardIndex: update.globalGovRewardIndex,
             proposalMapRoot: this.proposalMapRoot,
             lastProposalIndex: this.lastProposalIndex,
-            stakeMapRoot: this.stakeMapRoot,
             bridgeMapRoot: this.bridgeMapRoot,
             observersMultiSigTreshold: this.observersMultiSigTreshold,
             rollupProgramsVkhMapRoot: this.rollupProgramsVkhMapRoot,
@@ -93,15 +95,18 @@ export class GovernanceStateUpdate extends Struct({
     
     minaSettlementKey: PublicKey,
 
-    globalGovRewardIndex: UInt64,
+    globalGovRewardIndex: InterBlockUInt64,
     
     bridgeMapRoot: MerkleRoot<BridgeMap>,
     observersMultiSigTreshold: UInt8,
     rollupProgramsVkhMapRoot: MerkleRoot<VkhMap>,
-    totalAmountStaked: UInt64,
-    stakeWithdrawalFee: UInt64,
+    totalAmountStaked: InterBlockUInt64,
+    stakeWithdrawalFee: Ratio32,
 }) {
     toFields(): Field[] {
+        // todo does this work?
+        const globalGovRewardIndex = this.globalGovRewardIndex as { previous: UInt64, current: UInt64 };
+        const totalAmountStaked = this.totalAmountStaked as { previous: UInt64, current: UInt64 };
         return [
             this.forp.value,
             this.councilMembersMerkleRoot.root,
@@ -111,12 +116,14 @@ export class GovernanceStateUpdate extends Struct({
             this.proposalExecutionDelayMillis.value,
             this.proposalSnapshotValidityMillis.value,
             ...this.minaSettlementKey.toFields(),
-            this.globalGovRewardIndex.value,
+            globalGovRewardIndex.previous.value,
+            globalGovRewardIndex.current.value,
             this.bridgeMapRoot.root,
             this.observersMultiSigTreshold.value,
             this.rollupProgramsVkhMapRoot.root,
-            this.totalAmountStaked.value,
-            this.stakeWithdrawalFee.value,
+            totalAmountStaked.previous.value,
+            totalAmountStaked.current.value,
+            this.stakeWithdrawalFee.num.value,
         ];
     }
 }

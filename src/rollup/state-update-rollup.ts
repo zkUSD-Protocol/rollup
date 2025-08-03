@@ -34,9 +34,12 @@ import { LiquidateIntentDynamicProof } from "../intents/liquidate.js";
 import { RedeemCollateralUpdate } from "../domain/vault/vault-update.js";
 import { BridgeOutIntentDynamicProof } from "../intents/bridge-out.js";
 import { ProofVerification, verifyDynamicProof, VkhMap } from "../domain/governance/vkh-map.js";
-import { FizkTokenMap } from "../domain/fizk-token/fizk-token-map.js";
 import { FizkWrapupPreconditions, FizkWrapupPublicOutput } from "../intents/fizk-token/wrapper.js";
 import { ZkusdMapUpdate } from "../state-updates/zkusd-map-update.js";
+import { DeficitCoverageLiquidationPreconditions, DeficitCoverageLiquidationPublicOutput } from "../intents/deficit-coverage-liquidation.js";
+import { FizkMintUpdate } from "../domain/fizk-token/fizk-token-update.js";
+import { UInt50 } from "../core/uint50.js";
+import { FizkTokenMap } from "../domain/fizk-token/fizk-token-map.js";
 
 function log(msg: string, v?: unknown) {
 Provable.log(msg);
@@ -99,10 +102,10 @@ function updateBlockInfoState(
   blockInfoState: BlockInfoState,
   previousStateHash: Field,
 ): void {
+  historicalStateTree.insert(blockInfoState.blockNumber.value, previousStateHash);
   blockInfoState.blockNumber = blockInfoState.blockNumber.add(1);
   blockInfoState.previousBlockClosureTimestamp = timestamp;
   blockInfoState.intentSequence = blockInfoState.intentSequence.add(1);
-  historicalStateTree.insert(blockInfoState.blockNumber.sub(1).value, previousStateHash);
 }
 
 function verifyProposalSnapshot(
@@ -232,6 +235,36 @@ export class BridgeInPrivateInput extends Struct({
 	proofVerification: ProofVerification,
 }) {}
 
+export class DeficitCoverageLiquidationIntentDynamicProof extends DynamicProof<DeficitCoverageLiquidationPreconditions, DeficitCoverageLiquidationPublicOutput> {
+	static publicInputType = DeficitCoverageLiquidationPreconditions;
+	static publicOutputType = DeficitCoverageLiquidationPublicOutput;
+	static maxProofsVerified = 0 as const;
+	static featureFlags = FeatureFlags.allNone;
+}
+
+export class DeficitCoverageLiquidationPrivateInput extends Struct({
+	proof: DeficitCoverageLiquidationIntentDynamicProof,
+	zkusdMap: ZkUsdMap,
+	vaultMap: VaultMap,
+	collateralIoMap: CollateralIoMap,
+	historicalBlockStateMap: HistoricalBlockStateMap,
+	proofVerification: ProofVerification,
+  fizkTokenMap: FizkTokenMap,
+}) {}
+
+// verify that the given state existed and is in the past
+function verifyHistoricalBlockState(
+  rollupState: FizkRollupState,
+  historicalBlockStateMap: HistoricalBlockStateMap,
+  noteSnapshotBlockNumber: UInt64,
+  noteSnapshotBlockHash: Field,
+) {
+  getRoot(historicalBlockStateMap).root.assertEquals(rollupState.blockInfoState.historicalStateMerkleRoot.root);
+  log("verifyHistoricalBlockState: historicalBlockStateMap root", historicalBlockStateMap.root);
+  historicalBlockStateMap.get(noteSnapshotBlockNumber.value).assertEquals(noteSnapshotBlockHash);
+  noteSnapshotBlockNumber.assertLessThanOrEqual(rollupState.blockInfoState.blockNumber);
+}
+
 export const FizkStateUpdateRollup = ZkProgram({
   name: "FizkStateUpdateRollup",
   publicInput: FizkRollupState,
@@ -266,7 +299,7 @@ export const FizkStateUpdateRollup = ZkProgram({
         publicInput.fizkTokenState.fizkTokenMapRoot.assertEquals(getRoot(privateInput.fizkTokenMap));
 
         // apply updates
-        const newFizkTokenMapRoot = FizkTokenMap.applyVerifiedUpdates(privateInput.fizkTokenMap, privateInput.proof.publicOutput.verifiedFizkTokenUpdates, publicInput.blockInfoState.previousBlockClosureTimestamp, publicInput.governanceState.globalGovRewardIndex);
+        const newFizkTokenMapRoot = FizkTokenMap.applyVerifiedUpdates(privateInput.fizkTokenMap, privateInput.proof.publicOutput.verifiedFizkTokenUpdates, publicInput.blockInfoState.previousBlockClosureTimestamp, publicInput.governanceState.globalGovRewardIndex.current);
 
         // add output commitment to zkusd map
         const outputNoteCommitments = privateInput.proof.publicOutput.outputNoteCommitments;
@@ -570,14 +603,16 @@ export const FizkStateUpdateRollup = ZkProgram({
       privateInputs: [BurnPrivateInput],
       async method(
         publicInput: FizkRollupState,
-        privateInput: BurnPrivateInput & { zkusdMap: ZkUsdMap; vaultMap: VaultMap, proofVerification: {verificationKey: VerificationKey, intentVkhKey: Field, vkhMap: VkhMap} },
+        privateInput: BurnPrivateInput & { zkusdMap: ZkUsdMap; vaultMap: VaultMap, historicalBlockStateMap: HistoricalBlockStateMap, proofVerification: {verificationKey: VerificationKey, intentVkhKey: Field, vkhMap: VkhMap} },
       ): Promise<{ publicOutput: FizkRollupState }> {
-        log("burn: before proof.verify");
-        privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
-        publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
-        log("burn: after proof.verify");
+        // verify proof
+        verifyDynamicProof(
+          privateInput.proof,
+          privateInput.proofVerification,
+          publicInput.governanceState.rollupProgramsVkhMapRoot
+        );
 
+        // verify preconditions
         const preconditions = privateInput.proof.publicInput;
         const vaultUpdate = privateInput.proof.publicOutput.vaultUpdate;
         const actualVaultParams = getActualVaultParams(
@@ -586,18 +621,17 @@ export const FizkStateUpdateRollup = ZkProgram({
         );
         preconditions.vaultParameters.equals(actualVaultParams).assertTrue();
 
-        getRoot(privateInput.historicalBlockStateMap).assertEquals(
-          publicInput.blockInfoState.historicalStateMerkleRoot,
-        );
-        log("burn: historicalBlockStateMap root", privateInput.historicalBlockStateMap.root);
-        privateInput.historicalBlockStateMap
-          .get(preconditions.noteSnapshotBlockNumber.value)
-          .assertEquals(preconditions.noteSnapshotBlockHash);
-        preconditions.noteSnapshotBlockNumber.assertLessThanOrEqual(
-          publicInput.blockInfoState.blockNumber,
+        verifyHistoricalBlockState(
+          publicInput,
+          privateInput.historicalBlockStateMap,
+          preconditions.noteSnapshotBlockNumber.value,
+          preconditions.noteSnapshotBlockHash,
         );
 
-        log("burn: verify VaultMap repay update");
+        
+        
+
+        // verify vault update
         const verifiedVaultUpdate = VaultMap.verifyRepayDebtUpdate(
           privateInput.vaultMap,
           publicInput.vaultState,
@@ -741,19 +775,32 @@ export const FizkStateUpdateRollup = ZkProgram({
         const currentBlockNumber = publicInput.blockInfoState.blockNumber;
         const priceBlockNumber = privateInput.proof.publicInput.rollupStateBlockNumber;
 
-        const collateralPriceNanoUsd = Provable.if(
+        const currentCollateralPriceNanoUsd = Provable.if(
           vaultUpdate.collateralType.equals(CollateralType.SUI),
-          publicInput.vaultState.suiVaultTypeState.priceNanoUsd,
-          publicInput.vaultState.minaVaultTypeState.priceNanoUsd,
+          publicInput.vaultState.suiVaultTypeState.priceNanoUsd.current,
+          publicInput.vaultState.minaVaultTypeState.priceNanoUsd.current,
         );
+        const previousCollateralPriceNanoUsd = Provable.if(
+          vaultUpdate.collateralType.equals(CollateralType.SUI),
+          publicInput.vaultState.suiVaultTypeState.priceNanoUsd.previous,
+          publicInput.vaultState.minaVaultTypeState.priceNanoUsd.previous,
+        );
+
+        // take current if it is greater than or equal to minimal collateral price, otherwise take previous
+        const selectedCollateralPriceNanoUsd = Provable.if(
+          currentCollateralPriceNanoUsd.greaterThanOrEqual(privateInput.proof.publicInput.minimalCollateralPriceNanoUsd),
+          currentCollateralPriceNanoUsd,
+          previousCollateralPriceNanoUsd
+        );
+        
         // verify proof preconditions
-        privateInput.proof.publicInput.minimalCollateralPriceNanoUsd.assertLessThanOrEqual(collateralPriceNanoUsd);
+        privateInput.proof.publicInput.minimalCollateralPriceNanoUsd.assertLessThanOrEqual(selectedCollateralPriceNanoUsd);
 
         const currentStateCondition = currentBlockNumber
           .equals(priceBlockNumber)
           .and(
             privateInput.proof.publicInput.collateralPriceNanoUsd.equals(
-              collateralPriceNanoUsd,
+              currentCollateralPriceNanoUsd,
             ),
           );
 
@@ -809,23 +856,16 @@ export const FizkStateUpdateRollup = ZkProgram({
         },
       ): Promise<{ publicOutput: FizkRollupState }> {
         log("transfer: before proof.verify");
-        privateInput.proof.verify(privateInput.proofVerification.verificationKey);
-        privateInput.proofVerification.vkhMap.get(privateInput.proofVerification.vkhKey).assertEquals(privateInput.proofVerification.verificationKey.hash);
-        publicInput.governanceState.rollupProgramsVkhMapRoot.assertEquals(getRoot(privateInput.proofVerification.vkhMap));
+        verifyDynamicProof(privateInput.proof, privateInput.proofVerification, publicInput.governanceState.rollupProgramsVkhMapRoot);
         log("transfer: after proof.verify");
 
-        const { noteSnapshotBlockNumber, noteSnapshotBlockHash } =
-          privateInput.proof.publicInput;
-
-        getRoot(privateInput.historicalBlockStateMap).assertEquals(
-          publicInput.blockInfoState.historicalStateMerkleRoot,
-        );
-        log("transfer: historicalBlockStateMap root", privateInput.historicalBlockStateMap.root);
-        privateInput.historicalBlockStateMap
-          .get(noteSnapshotBlockNumber.value)
-          .assertEquals(noteSnapshotBlockHash);
-        noteSnapshotBlockNumber.assertLessThanOrEqual(
-          publicInput.blockInfoState.blockNumber,
+        const { noteSnapshotBlockNumber, noteSnapshotBlockHash } = privateInput.proof.publicInput;
+        
+        verifyHistoricalBlockState(
+          publicInput,
+          privateInput.historicalBlockStateMap,
+          noteSnapshotBlockNumber,
+          noteSnapshotBlockHash,
         );
 
         log("transfer: update ZkUsdMap");
@@ -1004,6 +1044,7 @@ export const FizkStateUpdateRollup = ZkProgram({
       },
     },
 
+    // make sure that it can be run either by validator or by governance
     blockCloseIntent: {
       privateInputs: [BlockCloseIntentPrivateInput],
       async method(
@@ -1017,15 +1058,24 @@ export const FizkStateUpdateRollup = ZkProgram({
         privateInput.oracleBlockDataProof.verify();
         log("blockCloseIntent: after oracle proof.verify");
 
-        publicInput.vaultState.minaVaultTypeState.priceNanoUsd =
+        publicInput.vaultState.minaVaultTypeState.priceNanoUsd.previous =
+          publicInput.vaultState.minaVaultTypeState.priceNanoUsd.current;
+        publicInput.vaultState.minaVaultTypeState.priceNanoUsd.current =
           privateInput.oracleBlockDataProof.publicOutput.minaVaultTypeUpdate.priceNanoUsd;
         publicInput.vaultState.minaVaultTypeState.globalAccumulativeInterestRateScaled =
           privateInput.oracleBlockDataProof.publicOutput.minaVaultTypeUpdate.blockRateScaledUpdate;
 
-        publicInput.vaultState.suiVaultTypeState.priceNanoUsd =
+        publicInput.vaultState.suiVaultTypeState.priceNanoUsd.previous =
+          publicInput.vaultState.suiVaultTypeState.priceNanoUsd.current;
+        publicInput.vaultState.suiVaultTypeState.priceNanoUsd.current =
           privateInput.oracleBlockDataProof.publicOutput.suiVaultTypeUpdate.priceNanoUsd;
         publicInput.vaultState.suiVaultTypeState.globalAccumulativeInterestRateScaled =
           privateInput.oracleBlockDataProof.publicOutput.suiVaultTypeUpdate.blockRateScaledUpdate;
+        
+        publicInput.fizkTokenState.fizkPriceNanoUsd.previous =
+          publicInput.fizkTokenState.fizkPriceNanoUsd.current;
+        publicInput.fizkTokenState.fizkPriceNanoUsd.current =
+          privateInput.oracleBlockDataProof.publicOutput.fizkPriceNanoUsd;
 
         log("blockCloseIntent: updateBlockInfoState");
         updateBlockInfoState(
@@ -1037,6 +1087,122 @@ export const FizkStateUpdateRollup = ZkProgram({
 
         return { publicOutput: publicInput };
       },
-    }, 
-   },
-});
+    },
+    
+    // todo the computatiuon should properly deal with recision and scaling.
+    // it should check the previous block price as well.
+deficitCoverageLiquidation: { 
+  privateInputs: [DeficitCoverageLiquidationPrivateInput],
+
+  async method(
+    publicInput: FizkRollupState,
+    privateInput: DeficitCoverageLiquidationPrivateInput & {
+      historicalBlockStateMap: HistoricalBlockStateMap,
+      fizkTokenMap: FizkTokenMap,
+      zkusdMap: ZkUsdMap,
+      vaultMap: VaultMap,
+    },
+  ): Promise<{ publicOutput: FizkRollupState }> {
+    const { vaultMap } = privateInput;
+
+    // ----- Verify proof preconditions
+    const preconditions: DeficitCoverageLiquidationPreconditions = privateInput.proof.publicInput;
+
+    // you can use previous block price, but then you risk invalid intent if the price changes between the blocks
+    const fizkPriceCurrent = publicInput.fizkTokenState.fizkPriceNanoUsd.current.equals(preconditions.fizkPriceNanoUsd);
+    const fizkPricePrevious = publicInput.fizkTokenState.fizkPriceNanoUsd.previous.equals(preconditions.fizkPriceNanoUsd);
+    const fizkPriceValid = fizkPriceCurrent.or(fizkPricePrevious);
+    
+    fizkPriceValid.assertTrue();
+
+    const vaultTypeData = VaultMap.getVaultTypeData(
+      publicInput.vaultState,
+      privateInput.proof.publicOutput.collateralType
+    );
+    const collateralPriceCurrent = vaultTypeData.priceNanoUsd.current.equals(preconditions.collateralPriceNanoUsd);
+    const collateralPricePrevious = vaultTypeData.priceNanoUsd.previous.equals(preconditions.collateralPriceNanoUsd);
+    const collateralPriceValid = collateralPriceCurrent.or(collateralPricePrevious);
+    collateralPriceValid.assertTrue();
+    const collateralPriceNanoUsd = Provable.if(collateralPriceCurrent, vaultTypeData.priceNanoUsd.current, vaultTypeData.priceNanoUsd.previous);
+    preconditions.vaultParameters.equals(vaultTypeData.parameters).assertTrue();
+
+    verifyHistoricalBlockState(
+      publicInput,
+      privateInput.historicalBlockStateMap,
+      preconditions.noteSnapshotBlockNumber,
+      preconditions.noteSnapshotBlockHash,
+    );
+
+    // ----- Verify proof
+    verifyDynamicProof(
+      privateInput.proof,
+      privateInput.proofVerification,
+      publicInput.governanceState.rollupProgramsVkhMapRoot
+    );
+
+    // ----- Verify updates
+    const repaymentUpdate = privateInput.proof.publicOutput.debtRepaymentUpdate;
+
+    const {
+      verifiedUpdate,
+      liquidateeCollateralDelta,
+      liquidatorCollateralDelta
+    } = VaultMap.verifyLiquidationUpdate(
+      vaultMap as VaultMap,
+      publicInput.vaultState,
+      repaymentUpdate
+    );
+
+    // ----- Fizk minting computation
+    liquidateeCollateralDelta.assertEquals(UInt64.zero);
+
+    const liquidationBonusRatio = vaultTypeData.parameters.liquidationBonusRatio;
+
+    const shouldReceive = liquidatorCollateralDelta.value.mul(liquidationBonusRatio.value);
+    const received = liquidatorCollateralDelta.value.mul(collateralPriceNanoUsd.value);
+
+    const delta = received.sub(shouldReceive);
+
+    // use proof price instead
+    const fizkTokenAmount = delta.div(privateInput.proof.publicOutput.fizkPriceNanoUsd);
+    fizkTokenAmount.assertLessThan(UInt50.maxint.value);
+
+    const fizkMintUpdate = new FizkMintUpdate({
+      amount: new UInt50({ value: fizkTokenAmount }),
+      to: privateInput.proof.publicOutput.liquidatorAddress,
+    });
+
+    // ----- Continue with the rest of the updates
+    getRoot(privateInput.fizkTokenMap).assertEquals(publicInput.fizkTokenState.fizkTokenMapRoot);
+
+    const verifiedMintUpdate = FizkTokenMap.verifyMintUpdate(
+      privateInput.fizkTokenMap,
+      fizkMintUpdate
+    );
+
+    // Apply ZkUSD burn update
+    const burnUpdate = privateInput.proof.publicOutput.zkusdBurnUpdate;
+    const newZkusdMapRoot = ZkUsdMap.verifyAndUpdateSingleOutput(
+      privateInput.zkusdMap,
+      publicInput.zkUsdState.zkUsdMapRoot,
+      burnUpdate
+    );
+    publicInput.zkUsdState.zkUsdMapRoot = newZkusdMapRoot;
+
+    // Apply vault update
+    const newVaultMapRoot = VaultMap.verifiedUpdate(vaultMap, verifiedUpdate);
+    publicInput.vaultState.vaultMapRoot = newVaultMapRoot;
+
+    // Apply Fizk mint update
+    const newFizkTokenMapRoot = FizkTokenMap.applyVerifiedUpdates(
+      privateInput.fizkTokenMap,
+      verifiedMintUpdate,
+      publicInput.blockInfoState.previousBlockClosureTimestamp,
+      publicInput.governanceState.globalGovRewardIndex.current
+    );
+    publicInput.fizkTokenState.fizkTokenMapRoot = newFizkTokenMapRoot;
+
+    return { publicOutput: publicInput };
+  },
+}
+}});
