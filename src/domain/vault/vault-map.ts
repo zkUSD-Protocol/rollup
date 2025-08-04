@@ -144,7 +144,7 @@ static verifyRedeemCollateralUpdate(map: VaultMap, state: ZkUsdVaults,  update: 
   const vaultTypeData = VaultMap.getVaultTypeData(state, collateralType);
   const vault = VaultMap.getVaultFromVaultTypeData(map, vaultTypeData, vaultAddress);
 
-  vault.redeemCollateral(collateralDelta, state.minaVaultTypeState.priceNanoUsd);
+  vault.redeemCollateral(collateralDelta, state.minaVaultTypeState.priceNanoUsd.current);
   
   return new VerifiedMapUpdate({
     vaultAddress: vaultAddress,
@@ -230,7 +230,7 @@ static getUpdateVault(map: VaultMap, state: ZkUsdVaults, address: VaultAddress, 
   return vault;
 }
 
-static verifyMintUpdate(map: VaultMap, state: ZkUsdVaults,  update: MintIntentUpdate): VerifiedMapUpdate {
+static verifyMintUpdate(map: VaultMap, state: ZkUsdVaults,  update: MintIntentUpdate, collateralPriceNanoUsd: UInt64): VerifiedMapUpdate {
   const { vaultAddress, debtDelta, collateralType } = update;
 
   // map is up-to-date wrt to the state
@@ -243,7 +243,7 @@ static verifyMintUpdate(map: VaultMap, state: ZkUsdVaults,  update: MintIntentUp
   const vaultTypeData = VaultMap.getVaultTypeData(state, collateralType);
   const vault = VaultMap.getVaultFromVaultTypeData(map, vaultTypeData, vaultAddress);
 
-  vault.mintZkUsd(debtDelta, state.minaVaultTypeState.priceNanoUsd, vaultTypeData.globalAccumulativeInterestRateScaled);
+  vault.mintZkUsd(debtDelta, collateralPriceNanoUsd, vaultTypeData.globalAccumulativeInterestRateScaled);
   
   return new VerifiedMapUpdate({
     vaultAddress: vaultAddress,

@@ -825,6 +825,7 @@ export const FizkStateUpdateRollup = ZkProgram({
           privateInput.vaultMap,
           publicInput.vaultState,
           vaultUpdate,
+          selectedCollateralPriceNanoUsd
         );
 
         log("mint: update ZkUsdMap");
