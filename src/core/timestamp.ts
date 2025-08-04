@@ -37,6 +37,9 @@ export class Timestamp34 extends Struct({
 export class Timestamp extends Struct({
     timestampMs: UInt64,
 }) {
+    static empty() {
+        return new Timestamp({ timestampMs: UInt64.zero });
+    }
 
     toFields(): Field[] {
         return [this.timestampMs.value];

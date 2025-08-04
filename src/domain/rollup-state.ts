@@ -19,7 +19,7 @@ export class FizkRollupState extends Struct({
     regulatoryState: RegulatoryState,
     fizkTokenState: FizkTokenState,
     blockInfoState: BlockInfoState,
-    zkUsdEnclavesState: ZkusdEnclavesState,
+    enclavesState: ZkusdEnclavesState,
 }){
 	toFields() : Field[] {
 		return [
@@ -31,7 +31,7 @@ export class FizkRollupState extends Struct({
 			...this.regulatoryState.toFields(),
 			...this.fizkTokenState.toFields(),
 			...this.blockInfoState.toFields(),
-			...this.zkUsdEnclavesState.toFields(),
+			...this.enclavesState.toFields(),
 		];
 	}
 

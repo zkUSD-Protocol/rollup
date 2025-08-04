@@ -19,6 +19,8 @@ export class BlockCloseIntentPublicOutput extends Struct({
     
 }) {}
 
+export const BlockCloseIntentKey = Field(24358148199980567763499829488488625916536864947877658593520562859562325813357n);
+
 
 export const BlockCloseIntent = ZkProgram({
     name: 'BlockCloseIntent',
@@ -52,14 +54,47 @@ export class OracleBlockDataProofPublicInput extends Struct({
 export class VaultTypeUpdate extends Struct({
     priceNanoUsd: UInt64,
     blockRateScaledUpdate:UInt64,
-}) {}
+}) {
+    toFields(): Field[] {
+        return [
+            this.priceNanoUsd.value,
+            this.blockRateScaledUpdate.value,
+        ];
+    }
+
+    static empty() {
+        return new VaultTypeUpdate({
+            priceNanoUsd: UInt64.zero,
+            blockRateScaledUpdate: UInt64.zero,
+        });
+    }
+}
     
 export class OracleBlockDataProofPublicOutput extends Struct({
     minaVaultTypeUpdate: VaultTypeUpdate,
     suiVaultTypeUpdate: VaultTypeUpdate,
     fizkPriceNanoUsd: UInt64,
     timestamp: Timestamp,
-}) {}
+}) {
+
+    toFields(): Field[] {
+        return [
+            ...this.minaVaultTypeUpdate.toFields(),
+            ...this.suiVaultTypeUpdate.toFields(),
+            this.fizkPriceNanoUsd.value,
+            ...this.timestamp.toFields(),
+        ];
+    }
+
+    static empty() {
+        return new OracleBlockDataProofPublicOutput({
+            minaVaultTypeUpdate: VaultTypeUpdate.empty(),
+            suiVaultTypeUpdate: VaultTypeUpdate.empty(),
+            fizkPriceNanoUsd: UInt64.zero,
+            timestamp: Timestamp.empty(),
+        });
+    }
+}
 
 export const OracleBlockDataProgram = ZkProgram({
     name: 'ObserverBlockDataProgram',
@@ -76,9 +111,3 @@ export const OracleBlockDataProgram = ZkProgram({
 })
 
 export class OracleBlockDataProof extends ZkProgram.Proof(OracleBlockDataProgram) {}
-
-
-export class BlockCloseIntentPrivateInput extends Struct({
-    oracleBlockDataProof: OracleBlockDataProof,
-    historicalStateMap: HistoricalBlockStateMap,
-}) {}

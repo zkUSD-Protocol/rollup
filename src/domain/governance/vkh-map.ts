@@ -13,6 +13,8 @@ const VKH_MAP_HEIGHT = 10; // 512
 const VkhMapBase = createSerializableIndexedMap(VKH_MAP_HEIGHT);
 
 export class VkhMap extends VkhMapBase {
+  static stateUpdateProgramVkhKey: Field = new Field(1)
+  static councilMultisigVkhKey: Field = new Field(2)
   /**
    * Create a pruned version of this map
    */

@@ -1,8 +1,8 @@
 import { Bool, DynamicProof, FeatureFlags, Field, Poseidon, SelfProof, VerificationKey, ZkProgram } from "o1js";
 import { FizkRollupState } from "../domain/rollup-state.js";
-import { VkhMerkleMap } from "../domain/rollup/vkh-merkle-map.js";
 import { BlockCommitment } from "./block-commitment.js";
 import { GenesisProgramProof } from "./genesis-program.js";
+import { VkhMap } from "../domain/governance/vkh-map.js";
 
 
 export class FizkStateUpdateProof extends DynamicProof<FizkRollupState, FizkRollupState> {
@@ -36,8 +36,8 @@ export const BlockRollup = ZkProgram({
         },
         // attaches rolled-up fizk state update (block) to the existing block rollup
         rollupStateUpdate: {
-            privateInputs: [SelfProof, FizkStateUpdateProof, VerificationKey, VkhMerkleMap],
-            async method(publicInput: BlockCommitment, blockRollupProof:SelfProof<BlockCommitment, BlockCommitment>, stateUpdateProof: FizkStateUpdateProof, verificationKey: VerificationKey, vkhMap: VkhMerkleMap): Promise<{ publicOutput: BlockCommitment }> {
+            privateInputs: [SelfProof, FizkStateUpdateProof, VerificationKey, VkhMap],
+            async method(publicInput: BlockCommitment, blockRollupProof:SelfProof<BlockCommitment, BlockCommitment>, stateUpdateProof: FizkStateUpdateProof, verificationKey: VerificationKey, vkhMap: VkhMap): Promise<{ publicOutput: BlockCommitment }> {
 
                 // pin public input
                 publicInput.equals(blockRollupProof.publicInput).assertTrue();

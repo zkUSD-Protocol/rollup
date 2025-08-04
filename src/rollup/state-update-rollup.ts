@@ -1,7 +1,6 @@
-import { DynamicProof, FeatureFlags, Field, Poseidon, Provable, Struct, UInt64, VerificationKey, ZkProgram } from "o1js";
+import { Bool, DynamicProof, FeatureFlags, Field, Poseidon, Provable, PublicKey, Signature, Struct, UInt64, VerificationKey, ZkProgram } from "o1js";
 
 import { FizkRollupState } from "../domain/rollup-state.js";
-import { BlockCloseIntentPrivateInput } from "../intents/block-close-intent.js";
 import { HistoricalBlockStateMap } from "../domain/block-info/historical-block-state-map.js";
 import { BlockInfoState } from "../domain/block-info/block-info-state.js";
 import {
@@ -41,6 +40,11 @@ import { MintIntentDynamicProof } from "./dynamic-proofs/zkusd-mint.js";
 import { BridgeOutIntentDynamicProof } from "./dynamic-proofs/bridge-out.js";
 import { BridgeInIntentDynamicProof } from "./dynamic-proofs/bridge-in.js";
 import { DeficitCoverageLiquidationDynamicProof } from "./dynamic-proofs/deficit-coverage-liquidation.js";
+import { BlockCloseIntentKey, OracleBlockDataProof } from "../intents/block-close-intent.js";
+import { ValidatorMap } from "../domain/enclave/zskud-enclaves-state.js";
+import { GenericCouncilMultiSig, GenericCouncilMultiSigPublicInput } from "../intents/governance/council-multi-sig.js";
+import { GenericCouncilMultiSigDynamicProof } from "./dynamic-proofs/council-multisig-proof.js";
+import { CouncilMemberMap } from "../domain/governance/council-member-map.js";
 
 function log(msg: string, v?: unknown) {
 Provable.log(msg);
@@ -72,10 +76,10 @@ function applyGovernanceUpdates(
     rollupState.vaultState.suiVaultTypeState.parameters,
   );
 
-  rollupState.zkUsdEnclavesState = Provable.if(
+  rollupState.enclavesState = Provable.if(
     govUpdate.applyEnclaveStateUpdate,
     govUpdate.enclaveStateUpdate,
-    rollupState.zkUsdEnclavesState,
+    rollupState.enclavesState,
   );
 
   rollupState.globalParametersState = Provable.if(
@@ -260,6 +264,21 @@ function verifyHistoricalBlockState(
   noteSnapshotBlockNumber.assertLessThanOrEqual(rollupState.blockInfoState.blockNumber);
 }
 
+export class BlockCloseCouncilIntentPrivateInput extends Struct({
+    oracleBlockDataProof: OracleBlockDataProof,
+    historicalStateMap: HistoricalBlockStateMap,
+    councilSignatureProof: GenericCouncilMultiSigDynamicProof,
+    proofVerification: ProofVerification,
+}) {}
+
+export class BlockCloseIntentPrivateInput extends Struct({
+    oracleBlockDataProof: OracleBlockDataProof,
+    historicalStateMap: HistoricalBlockStateMap,
+    permissionedSignature: Signature,
+    signerPublicKey: PublicKey,
+    validatorMap: ValidatorMap,
+}) {}
+
 export const FizkStateUpdateRollup = ZkProgram({
   name: "FizkStateUpdateRollup",
   publicInput: FizkRollupState,
@@ -380,7 +399,7 @@ export const FizkStateUpdateRollup = ZkProgram({
         );
         preconditions.vaultParameters.equals(actualVaultParams).assertTrue();
         preconditions.observerKeysMerkleRoot.assertEquals(
-          publicInput.zkUsdEnclavesState.observerKeysMerkleRoot,
+          publicInput.enclavesState.observerKeysMerkleRoot,
         );
 
         const ioMap = privateInput.iomap;
@@ -555,7 +574,7 @@ export const FizkStateUpdateRollup = ZkProgram({
 
         log("bridgeIn: verify observerKeysMerkleRoot");
         const preconditions = privateInput.proof.publicInput;
-        publicInput.zkUsdEnclavesState.observerKeysMerkleRoot.assertEquals(
+        publicInput.enclavesState.observerKeysMerkleRoot.assertEquals(
           preconditions.observerMapRoot,
         );
 
@@ -1039,7 +1058,65 @@ export const FizkStateUpdateRollup = ZkProgram({
         return { publicOutput: publicInput };
       },
     },
+    // TODO
+    councilBlockCloseIntent: {
+      privateInputs: [BlockCloseCouncilIntentPrivateInput],
+      async method(
+        publicInput: FizkRollupState,
+        privateInput: BlockCloseCouncilIntentPrivateInput,
+      ): Promise<{ publicOutput: FizkRollupState }> {
+        //verify the proof 
+        verifyDynamicProof(privateInput.councilSignatureProof, privateInput.proofVerification, publicInput.governanceState.rollupProgramsVkhMapRoot);
+        // verify the proof preconditions
+        const preconditions: GenericCouncilMultiSigPublicInput = privateInput.councilSignatureProof.publicOutput;
+        preconditions.lastValidBlockNumber.assertGreaterThanOrEqual(publicInput.blockInfoState.blockNumber);
+        preconditions.councilMemberMapRoot.assertEquals(publicInput.governanceState.councilMembersMerkleRoot);
 
+        const commitment: Field[] = [
+          BlockCloseIntentKey,
+          publicInput.blockInfoState.blockNumber.value,
+          ...privateInput.oracleBlockDataProof.publicOutput.toFields()
+        ]
+        preconditions.commitment.assertEquals(Poseidon.hash(commitment));
+        // verify that the number of votes is at least at the threshold
+        CouncilMemberMap.countBits(privateInput.councilSignatureProof.publicOutput.votesBitArray).assertGreaterThanOrEqual(publicInput.governanceState.councilSeatsSignatureThreshold);
+        
+        const previousStateHash: Field = Poseidon.hash(publicInput.toFields());
+
+        log("blockCloseIntent: before oracle proof.verify");
+        privateInput.oracleBlockDataProof.verify();
+        log("blockCloseIntent: after oracle proof.verify");
+
+        publicInput.vaultState.minaVaultTypeState.priceNanoUsd.previous =
+          publicInput.vaultState.minaVaultTypeState.priceNanoUsd.current;
+        publicInput.vaultState.minaVaultTypeState.priceNanoUsd.current =
+          privateInput.oracleBlockDataProof.publicOutput.minaVaultTypeUpdate.priceNanoUsd;
+        publicInput.vaultState.minaVaultTypeState.globalAccumulativeInterestRateScaled =
+          privateInput.oracleBlockDataProof.publicOutput.minaVaultTypeUpdate.blockRateScaledUpdate;
+
+        publicInput.vaultState.suiVaultTypeState.priceNanoUsd.previous =
+          publicInput.vaultState.suiVaultTypeState.priceNanoUsd.current;
+        publicInput.vaultState.suiVaultTypeState.priceNanoUsd.current =
+          privateInput.oracleBlockDataProof.publicOutput.suiVaultTypeUpdate.priceNanoUsd;
+        publicInput.vaultState.suiVaultTypeState.globalAccumulativeInterestRateScaled =
+          privateInput.oracleBlockDataProof.publicOutput.suiVaultTypeUpdate.blockRateScaledUpdate;
+        
+        publicInput.fizkTokenState.fizkPriceNanoUsd.previous =
+          publicInput.fizkTokenState.fizkPriceNanoUsd.current;
+        publicInput.fizkTokenState.fizkPriceNanoUsd.current =
+          privateInput.oracleBlockDataProof.publicOutput.fizkPriceNanoUsd;
+
+        log("blockCloseIntent: updateBlockInfoState");
+        updateBlockInfoState(
+          privateInput.historicalStateMap as HistoricalBlockStateMap,
+          privateInput.oracleBlockDataProof.publicOutput.timestamp,
+          publicInput.blockInfoState,
+          previousStateHash,
+        );
+
+        return { publicOutput: publicInput };
+      },
+    },
     // make sure that it can be run either by validator or by governance
     blockCloseIntent: {
       privateInputs: [BlockCloseIntentPrivateInput],
@@ -1047,6 +1124,18 @@ export const FizkStateUpdateRollup = ZkProgram({
         publicInput: FizkRollupState,
         privateInput: BlockCloseIntentPrivateInput,
       ): Promise<{ publicOutput: FizkRollupState }> {
+
+        //verify the signature
+        const message: Field[] = [
+          BlockCloseIntentKey,
+          publicInput.blockInfoState.blockNumber.value,
+          ...privateInput.oracleBlockDataProof.publicOutput.toFields()
+        ]
+        privateInput.permissionedSignature.verify(privateInput.signerPublicKey, message);
+
+        getRoot(privateInput.validatorMap).assertEquals(publicInput.enclavesState.validatorKeysMerkleRoot);
+        privateInput.validatorMap.assertIncluded(Poseidon.hash(privateInput.signerPublicKey.toFields()));
+        
         log("blockCloseIntent: start");
         const previousStateHash: Field = Poseidon.hash(publicInput.toFields());
 

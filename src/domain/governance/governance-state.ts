@@ -13,7 +13,7 @@ export class GovernanceState extends Struct({
     forp: UInt64,
     
     councilMembersMerkleRoot: MerkleRoot<CouncilMemberMap>,
-    councilSeatsSignatureTreshold: UInt8,
+    councilSeatsSignatureThreshold: UInt8,
     assemblyProposalThreshold: UInt64,
     assemblyProposalVetoThreshold: UInt64,
     proposalExecutionDelayMillis: UInt64,
@@ -43,7 +43,7 @@ export class GovernanceState extends Struct({
         return [
             this.forp.value,
             this.councilMembersMerkleRoot.root,
-            this.councilSeatsSignatureTreshold.value,
+            this.councilSeatsSignatureThreshold.value,
             this.assemblyProposalThreshold.value,
             this.assemblyProposalVetoThreshold.value,
             this.proposalExecutionDelayMillis.value,
@@ -66,7 +66,7 @@ export class GovernanceState extends Struct({
         return new GovernanceState({
             forp: update.forp,
             councilMembersMerkleRoot: update.councilMembersMerkleRoot,
-            councilSeatsSignatureTreshold: update.councilSeatsSignatureTreshold,
+            councilSeatsSignatureThreshold: update.councilSeatsSignatureTreshold,
             assemblyProposalThreshold: update.assemblyProposalThreshold,
             assemblyProposalVetoThreshold: update.assemblyProposalVetoThreshold,
             proposalExecutionDelayMillis: update.proposalExecutionDelayMillis,
