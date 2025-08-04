@@ -11,7 +11,7 @@ import { ObserverMap } from "../domain/enclave/observer-map.js";
 import { HistoricalBlockStateMap } from "../domain/block-info/historical-block-state-map.js";
 import { Timestamp } from "../core/timestamp.js";
 
-export class BlockCloseIntentPublicInput extends Struct({
+export class BlockCloseIntentPreconditions extends Struct({
     
 }) {}
 
@@ -22,12 +22,12 @@ export class BlockCloseIntentPublicOutput extends Struct({
 
 export const BlockCloseIntent = ZkProgram({
     name: 'BlockCloseIntent',
-    publicInput: BlockCloseIntentPublicInput,
+    publicInput: BlockCloseIntentPreconditions,
     publicOutput: BlockCloseIntentPublicOutput,
     methods: {
         dummy: {
             privateInputs: [],
-            async method(publicInput: BlockCloseIntentPublicInput): Promise<{ publicOutput: BlockCloseIntentPublicOutput }> {
+            async method(publicInput: BlockCloseIntentPreconditions): Promise<{ publicOutput: BlockCloseIntentPublicOutput }> {
                 return { publicOutput: publicInput };
             }
         }
@@ -37,8 +37,8 @@ export const BlockCloseIntent = ZkProgram({
 export class BlockCloseIntentProof extends ZkProgram.Proof(BlockCloseIntent) {}
 
 const flags = FeatureFlags.allNone;
-export class BlockCloseIntentDynamicProof extends DynamicProof<BlockCloseIntentPublicInput, BlockCloseIntentPublicOutput> {
-  static publicInputType = BlockCloseIntentPublicInput;
+export class BlockCloseIntentDynamicProof extends DynamicProof<BlockCloseIntentPreconditions, BlockCloseIntentPublicOutput> {
+  static publicInputType = BlockCloseIntentPreconditions;
   static publicOutputType = BlockCloseIntentPublicOutput;
   static maxProofsVerified = 0 as const;
   static featureFlags = flags;

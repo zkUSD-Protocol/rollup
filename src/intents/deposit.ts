@@ -79,11 +79,3 @@ export const DepositIntent = ZkProgram({
 });
 
 export class DepositIntentProof extends ZkProgram.Proof(DepositIntent) {}
-
-const flags = FeatureFlags.allNone;
-export class DepositIntentDynamicProof extends DynamicProof<DepositIntentPreconditions, DepositIntentOutput> {
-  static publicInputType = DepositIntentPreconditions;
-  static publicOutputType = DepositIntentOutput;
-  static maxProofsVerified = 0 as const;
-  static featureFlags = flags;
-}

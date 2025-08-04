@@ -9,30 +9,20 @@ import {
   GovActionType,
   GovProposalStatus,
   GovSystemUpdate,
-  GovActionIntentDynamicProof,
 } from "../intents/governance/wrapper.js";
 import { ProposalMap } from "../domain/governance/proposal-map.js";
 import { Timestamp } from "../core/timestamp.js";
-import { CreateVaultIntentDynamicProof } from "../intents/create-vault.js";
 import { VaultMap } from "../domain/vault/vault-map.js";
 import { VaultParameters } from "../domain/vault/vault.js";
 import { CollateralType } from "../domain/vault/vault-collateral-type.js";
-import { DepositIntentDynamicProof } from "../intents/deposit.js";
 import { CollateralIoMap } from "../domain/bridging/collateral-io-map.js";
 import { CollateralIOAccumulators } from "../domain/bridging/collateral-io-accumulators.js";
-import { RedeemIntentDynamicProof } from "../intents/redeem.js";
-import { TransferIntentDynamicProof } from "../intents/transfer.js";
 import { ZkUsdMap } from "../domain/zkusd/zkusd-map.js";
-import { BurnIntentDynamicProof } from "../intents/burn.js";
-import { MintIntentDynamicProof } from "../intents/mint.js";
-import { BridgeInIntentDynamicProof } from "../intents/bridge-in.js";
 import { BridgeIoMap } from "../domain/bridging/bridge-io-map.js";
 import { BridgeMap } from "../domain/bridging/bridge-map.js";
 import { ObserverMap } from "../domain/enclave/observer-map.js";
 import { getRoot } from "../core/map/merkle-root.js";
-import { LiquidateIntentDynamicProof } from "../intents/liquidate.js";
 import { RedeemCollateralUpdate } from "../domain/vault/vault-update.js";
-import { BridgeOutIntentDynamicProof } from "../intents/bridge-out.js";
 import { ProofVerification, verifyDynamicProof, VkhMap } from "../domain/governance/vkh-map.js";
 import { FizkWrapupPreconditions, FizkWrapupPublicOutput } from "../intents/fizk-token/wrapper.js";
 import { ZkusdMapUpdate } from "../state-updates/zkusd-map-update.js";
@@ -40,6 +30,17 @@ import { DeficitCoverageLiquidationPreconditions, DeficitCoverageLiquidationPubl
 import { FizkMintUpdate } from "../domain/fizk-token/fizk-token-update.js";
 import { UInt50 } from "../core/uint50.js";
 import { FizkTokenMap } from "../domain/fizk-token/fizk-token-map.js";
+import { GovActionIntentDynamicProof } from "./dynamic-proofs/governance-wrapper.js";
+import { CreateVaultIntentDynamicProof } from "./dynamic-proofs/create-vault.js";
+import { DepositIntentDynamicProof } from "./dynamic-proofs/zkusd-deposit.js";
+import { RedeemIntentDynamicProof } from "./dynamic-proofs/zkusd-redeem.js";
+import { TransferIntentDynamicProof } from "./dynamic-proofs/zkusd-transfer.js";
+import { LiquidateIntentDynamicProof } from "./dynamic-proofs/zkusd-liquidate.js";
+import { BurnIntentDynamicProof } from "./dynamic-proofs/burn.js";
+import { MintIntentDynamicProof } from "./dynamic-proofs/zkusd-mint.js";
+import { BridgeOutIntentDynamicProof } from "./dynamic-proofs/bridge-out.js";
+import { BridgeInIntentDynamicProof } from "./dynamic-proofs/bridge-in.js";
+import { DeficitCoverageLiquidationDynamicProof } from "./dynamic-proofs/deficit-coverage-liquidation.js";
 
 function log(msg: string, v?: unknown) {
 Provable.log(msg);
@@ -235,15 +236,9 @@ export class BridgeInPrivateInput extends Struct({
 	proofVerification: ProofVerification,
 }) {}
 
-export class DeficitCoverageLiquidationIntentDynamicProof extends DynamicProof<DeficitCoverageLiquidationPreconditions, DeficitCoverageLiquidationPublicOutput> {
-	static publicInputType = DeficitCoverageLiquidationPreconditions;
-	static publicOutputType = DeficitCoverageLiquidationPublicOutput;
-	static maxProofsVerified = 0 as const;
-	static featureFlags = FeatureFlags.allNone;
-}
 
 export class DeficitCoverageLiquidationPrivateInput extends Struct({
-	proof: DeficitCoverageLiquidationIntentDynamicProof,
+	proof: DeficitCoverageLiquidationDynamicProof,
 	zkusdMap: ZkUsdMap,
 	vaultMap: VaultMap,
 	collateralIoMap: CollateralIoMap,

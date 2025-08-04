@@ -29,7 +29,8 @@ export class FizkAddStakePublicOutput extends Struct({
 
 export const FizkAddStakeIntentKey = Field(10390054857078656466667304947102175670815779505166150894582302936733714274349n);
 
-
+// this inntents move fizk from unstaked to staked position
+// it collects reward
 export const FizkAddStake = ZkProgram({
     name: 'fizk-add-stake',
     publicInput: FizkAddStakePreconditions,

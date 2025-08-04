@@ -7,10 +7,11 @@ import { computeRewards } from "./common.js";
 
 
 export class FizkModifyWithdrawalIntentPreconditions extends Struct({
+    currentGlobalGovRewardIndex: UInt64, 
     totalAmountStaked: UInt64,
+    //--
     globalGovRewardIndexSnapshot: UInt64,
     amountStaked: UInt64, 
-    currentGlobalGovRewardIndex: UInt64, 
 }) {}
 
 // private input
@@ -32,6 +33,11 @@ export class FizkModifyWithdrawalIntentPublicOutput extends Struct({
 export const FizkModifyWithdrawalIntentKey = new Field(10390054857078656466667304947102175670815779505166150894582302936733714274349n);
 
 
+// produces an intent of stake modification.
+// one can move Fizk from the 'pending withdrawal stake' to the 'stake' or vice versa.
+// if it is moved from 'pending withdrawal stake' to 'stake' then the unlock timestamp
+// is reset, additionally as all stake interactions it will collect rewards, hence 
+// the note creation
 export const FizkModifyWithdrawalIntent = ZkProgram({
     name: 'fizk-modify-withdrawal',
     publicInput: FizkModifyWithdrawalIntentPreconditions,
@@ -47,8 +53,8 @@ export const FizkModifyWithdrawalIntent = ZkProgram({
                     address.value,
                     privateInput.isAdd.toField(),
                     privateInput.amount.value,
+                    publicInput.currentGlobalGovRewardIndex.value,
                 ];
-
                 privateInput.signature.verify(privateInput.ownerPublicKey, message);
                 
                 // compute rewards

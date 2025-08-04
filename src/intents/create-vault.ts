@@ -115,14 +115,3 @@ export const CreateVaultIntent = ZkProgram({
 export class CreateVaultIntentProof extends ZkProgram.Proof(
   CreateVaultIntent
 ) {}
-
-const flags = FeatureFlags.allNone;
-
-export class CreateVaultIntentDynamicProof extends DynamicProof<Field, CreateVaultIntentOutput> {
-  static publicInputType = Field;
-  static publicOutputType = CreateVaultIntentOutput;
-  static maxProofsVerified = 0 as const;
-
-  static featureFlags = flags
-}
-  

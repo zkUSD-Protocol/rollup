@@ -110,12 +110,3 @@ export const LiquidateIntent = ZkProgram({
 });
 
 export class LiquidateIntentProof extends ZkProgram.Proof(LiquidateIntent) {}
-
-const flags = FeatureFlags.allNone;
-export class LiquidateIntentDynamicProof extends DynamicProof<LiquidateIntentPreconditions, LiquidateIntentOutput> {
-  static publicInputType = LiquidateIntentPreconditions;
-  static publicOutputType = LiquidateIntentOutput;
-  static maxProofsVerified = 0 as const;
-  static featureFlags = flags;
-}
-    

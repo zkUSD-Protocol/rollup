@@ -148,11 +148,3 @@ export const BurnIntent = ZkProgram({
 /* ------------------------------------------------------------------ */
 
 export class BurnIntentProof extends ZkProgram.Proof(BurnIntent) {}
-
-const flags = FeatureFlags.allNone;
-export class BurnIntentDynamicProof extends DynamicProof<BurnIntentPreconditions, BurnIntentOutput> {
-  static publicInputType = BurnIntentPreconditions;
-  static publicOutputType = BurnIntentOutput;
-  static maxProofsVerified = 0 as const;
-  static featureFlags = flags;
-}

@@ -120,11 +120,3 @@ export const BridgeIntent = ZkProgram({
 });
 
 export class BridgeOutIntentProof extends ZkProgram.Proof(BridgeIntent) {}
-
-const flags = FeatureFlags.allNone;
-export class BridgeOutIntentDynamicProof extends DynamicProof<BridgeOutIntentPreconditions, BridgeOutIntentOutput> {
-  static publicInputType = BridgeOutIntentPreconditions;
-  static publicOutputType = BridgeOutIntentOutput;
-  static maxProofsVerified = 0 as const;
-  static featureFlags = flags;
-}

@@ -1,12 +1,11 @@
-import { ZkProgram, DynamicProof, FeatureFlags, Field, Struct, UInt64 } from "o1js";
-import { FizkTokenTransferPreconditions, FizkTokenTransferPublicOutput} from "./common.js";
+import { ZkProgram, FeatureFlags, Field, Struct, UInt64, DynamicProof } from "o1js";
 import { FizkTokenMap, VerifiedFizkTokenUpdates } from "../../domain/fizk-token/fizk-token-map.js";
 import { ProofVerification, verifyDynamicProof, VkhMap } from "../../domain/governance/vkh-map.js";
 import { FizkAddStakePreconditions, FizkAddStakePublicOutput } from "./stake.js";
 import { FizkMapValue } from "../../domain/fizk-token/fizk-map-value.js";
 import { OutputNoteCommitments } from "../../domain/zkusd/zkusd-note.js";
 import { MerkleRoot } from "../../core/map/merkle-root.js";
-import { UInt50, uint50toUint64 } from "../../core/uint50.js";
+import { UInt50, } from "../../core/uint50.js";
 import { Timestamp } from "../../core/timestamp.js";
 import { Ratio32 } from "../../core/ratio.js";
 import { InterBlockUInt64 } from "../../core/inter-block.js";
@@ -225,11 +224,3 @@ export const FizkTokenIntentWrapper = ZkProgram({
 })
 
 export class FizkTokenIntentWrapperProof extends ZkProgram.Proof(FizkTokenIntentWrapper) {}
-
-const flags = FeatureFlags.allNone;
-export class FizkTokenIntentWrapperDynamicProof extends DynamicProof<FizkTokenTransferPreconditions, FizkTokenTransferPublicOutput> {
-  static publicInputType = FizkTokenTransferPreconditions;
-  static publicOutputType = FizkTokenTransferPublicOutput;
-  static maxProofsVerified = 0 as const;
-  static featureFlags = flags;
-}

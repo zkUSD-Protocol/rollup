@@ -84,11 +84,3 @@ export const TransferIntent = ZkProgram({
 });
 
 export class TransferIntentProof extends ZkProgram.Proof(TransferIntent) {}
-
-const flags = FeatureFlags.allNone;
-export class TransferIntentDynamicProof extends DynamicProof<TransferIntentPreconditions, TransferIntentOutput> {
-  static publicInputType = TransferIntentPreconditions;
-  static publicOutputType = TransferIntentOutput;
-  static maxProofsVerified = 0 as const;
-  static featureFlags = flags;
-}
